@@ -1,0 +1,1637 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Patinha Viva — App</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=DM+Mono:wght@400&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --rose:#F0284A; --violet:#7C2FD6; --teal:#00B4AA; --amber:#F5A800;
+  --coral:#FF7850; --ink:#2D2640; --ink-mid:#5A5070; --ink-soft:#9A90B0;
+  --bg:#FAF8F5; --bg2:#F3EFF8; --white:#FFFFFF;
+  --sidebar:260px; --header:64px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);overflow-x:hidden;min-height:100vh}
+
+/* ── TELA DE LOGIN ─────────────────────────────────────────── */
+#screen-auth{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;background:linear-gradient(135deg,#FAF0F8 0%,#F0EAF8 50%,#EAF5F8 100%)}
+.auth-card{background:var(--white);border-radius:28px;padding:48px 40px;max-width:420px;width:100%;box-shadow:0 8px 48px rgba(124,47,214,.12);position:relative;overflow:hidden}
+.auth-card::before{content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;background:radial-gradient(circle,rgba(240,40,74,.08),transparent 70%);pointer-events:none}
+.auth-logo{display:flex;align-items:center;gap:12px;margin-bottom:32px;justify-content:center}
+.auth-logo-icon{width:48px;height:48px}
+.auth-logo-name{font-family:'Lora',serif;font-size:1.6rem}
+.auth-logo-name span{color:var(--rose);font-style:italic}
+.auth-tabs{display:flex;gap:0;margin-bottom:32px;background:var(--bg);border-radius:12px;padding:4px}
+.auth-tab{flex:1;padding:10px;border:none;background:transparent;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:.9rem;font-weight:500;color:var(--ink-soft);cursor:pointer;transition:all .2s}
+.auth-tab.active{background:var(--white);color:var(--violet);box-shadow:0 2px 8px rgba(124,47,214,.12)}
+.auth-form{display:flex;flex-direction:column;gap:16px}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-label{font-size:.82rem;font-weight:500;color:var(--ink-mid);letter-spacing:.02em}
+.form-input{padding:12px 16px;border:1.5px solid rgba(124,47,214,.15);border-radius:12px;font-family:'DM Sans',sans-serif;font-size:.95rem;color:var(--ink);background:var(--bg);outline:none;transition:border-color .2s,box-shadow .2s}
+.form-input:focus{border-color:var(--violet);box-shadow:0 0 0 3px rgba(124,47,214,.1)}
+.btn-auth{padding:14px;border:none;border-radius:12px;background:linear-gradient(135deg,var(--rose),var(--violet));color:#fff;font-family:'DM Sans',sans-serif;font-size:1rem;font-weight:600;cursor:pointer;transition:transform .2s,box-shadow .2s;margin-top:4px}
+.btn-auth:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(124,47,214,.3)}
+.auth-divider{text-align:center;font-size:.8rem;color:var(--ink-soft);margin:4px 0}
+.btn-social{padding:12px;border:1.5px solid rgba(124,47,214,.15);border-radius:12px;background:var(--white);font-family:'DM Sans',sans-serif;font-size:.9rem;color:var(--ink-mid);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:border-color .2s}
+.btn-social:hover{border-color:var(--violet)}
+.auth-footer{text-align:center;margin-top:20px;font-size:.8rem;color:var(--ink-soft)}
+.auth-footer a{color:var(--violet);text-decoration:none}
+
+/* ── LAYOUT PRINCIPAL ──────────────────────────────────────── */
+#screen-app{display:none;min-height:100vh}
+
+/* Sidebar */
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--sidebar);background:var(--ink);display:flex;flex-direction:column;z-index:100;transition:transform .3s}
+.sidebar-logo{padding:24px 20px 20px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:10px}
+.sidebar-logo-name{font-family:'Lora',serif;font-size:1.1rem;color:#fff}
+.sidebar-logo-name span{color:var(--rose);font-style:italic}
+.sidebar-nav{flex:1;padding:20px 12px;overflow-y:auto}
+.nav-section{margin-bottom:24px}
+.nav-section-label{font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.3);padding:0 8px;margin-bottom:8px}
+.nav-item{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;cursor:pointer;transition:background .2s;color:rgba(255,255,255,.55);font-size:.9rem;font-weight:400;border:none;background:transparent;width:100%;text-align:left}
+.nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-item.active{background:linear-gradient(135deg,rgba(240,40,74,.25),rgba(124,47,214,.25));color:#fff;font-weight:500}
+.nav-item .nav-icon{font-size:1.1rem;width:22px;text-align:center;flex-shrink:0}
+.nav-item .nav-badge{margin-left:auto;background:var(--rose);color:#fff;font-size:.65rem;font-weight:700;padding:2px 7px;border-radius:100px}
+.sidebar-footer{padding:16px 12px;border-top:1px solid rgba(255,255,255,.08)}
+.sidebar-user{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;cursor:pointer;transition:background .2s}
+.sidebar-user:hover{background:rgba(255,255,255,.08)}
+.user-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--rose),var(--violet));display:flex;align-items:center;justify-content:center;font-size:.9rem;font-weight:700;color:#fff;flex-shrink:0}
+.user-name{font-size:.85rem;font-weight:500;color:#fff}
+.user-plan{font-size:.72rem;color:rgba(255,255,255,.4)}
+
+/* Header mobile */
+.header-mobile{display:none;position:fixed;top:0;left:0;right:0;height:var(--header);background:rgba(250,248,245,.95);backdrop-filter:blur(12px);z-index:99;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid rgba(124,47,214,.08)}
+.btn-menu{background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--ink)}
+.header-logo{font-family:'Lora',serif;font-size:1.1rem;color:var(--ink)}
+.header-logo span{color:var(--rose);font-style:italic}
+
+/* Main content */
+.main-content{margin-left:var(--sidebar);padding:32px;min-height:100vh}
+.page{display:none}
+.page.active{display:block}
+
+/* Page header */
+.page-header{margin-bottom:32px}
+.page-title{font-family:'Lora',serif;font-size:1.8rem;color:var(--ink);margin-bottom:6px}
+.page-subtitle{color:var(--ink-soft);font-size:.9rem}
+
+/* Cards */
+.card{background:var(--white);border-radius:20px;padding:24px;box-shadow:0 2px 16px rgba(45,38,64,.06);border:1px solid rgba(124,47,214,.06)}
+.card-title{font-family:'Lora',serif;font-size:1.1rem;color:var(--ink);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+
+/* Grid */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+
+/* Stat cards */
+.stat-card{background:var(--white);border-radius:16px;padding:20px;box-shadow:0 2px 12px rgba(45,38,64,.06);border:1px solid rgba(124,47,214,.06)}
+.stat-icon{font-size:1.6rem;margin-bottom:10px}
+.stat-value{font-family:'Lora',serif;font-size:1.8rem;font-weight:700;color:var(--ink);line-height:1}
+.stat-label{font-size:.78rem;color:var(--ink-soft);margin-top:4px}
+.stat-trend{font-size:.75rem;color:var(--teal);margin-top:6px;font-weight:500}
+
+/* Buttons */
+.btn{padding:10px 20px;border-radius:12px;border:none;font-family:'DM Sans',sans-serif;font-size:.875rem;font-weight:500;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:8px}
+.btn-primary{background:linear-gradient(135deg,var(--rose),var(--violet));color:#fff;box-shadow:0 4px 12px rgba(124,47,214,.25)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(124,47,214,.35)}
+.btn-secondary{background:var(--bg);color:var(--ink-mid);border:1.5px solid rgba(124,47,214,.12)}
+.btn-secondary:hover{border-color:var(--violet);color:var(--violet)}
+.btn-ghost{background:transparent;color:var(--violet);border:1.5px solid rgba(124,47,214,.2)}
+.btn-ghost:hover{background:rgba(124,47,214,.06)}
+.btn-sm{padding:7px 14px;font-size:.8rem;border-radius:9px}
+.btn-danger{background:rgba(240,40,74,.08);color:var(--rose);border:1.5px solid rgba(240,40,74,.15)}
+.btn-danger:hover{background:rgba(240,40,74,.15)}
+
+/* Pet cards */
+.pet-card{background:var(--white);border-radius:20px;overflow:hidden;box-shadow:0 4px 20px rgba(45,38,64,.08);border:1px solid rgba(124,47,214,.06);transition:transform .2s,box-shadow .2s;cursor:pointer}
+.pet-card:hover{transform:translateY(-4px);box-shadow:0 12px 32px rgba(124,47,214,.15)}
+.pet-card-cover{height:140px;background:linear-gradient(135deg,#F3EEF9,#EAF5F8);display:flex;align-items:center;justify-content:center;font-size:4rem;position:relative;overflow:hidden}
+.pet-card-cover img{width:100%;height:100%;object-fit:cover}
+.pet-card-body{padding:16px}
+.pet-card-name{font-family:'Lora',serif;font-size:1.1rem;font-weight:700;color:var(--ink);margin-bottom:4px}
+.pet-card-info{font-size:.78rem;color:var(--ink-soft);margin-bottom:12px}
+.pet-card-tags{display:flex;gap:6px;flex-wrap:wrap}
+.pet-tag{font-size:.68rem;font-weight:600;padding:3px 10px;border-radius:100px;letter-spacing:.03em}
+.tag-rose{background:rgba(240,40,74,.1);color:var(--rose)}
+.tag-teal{background:rgba(0,180,170,.1);color:var(--teal)}
+.tag-violet{background:rgba(124,47,214,.1);color:var(--violet)}
+.tag-amber{background:rgba(245,168,0,.1);color:#B07800}
+
+/* Add pet card */
+.pet-card-add{border:2px dashed rgba(124,47,214,.2);background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:220px;color:var(--ink-soft);transition:all .2s}
+.pet-card-add:hover{border-color:var(--violet);color:var(--violet);background:rgba(124,47,214,.03)}
+.pet-card-add .add-icon{font-size:2rem}
+.pet-card-add .add-label{font-size:.875rem;font-weight:500}
+
+/* Timeline */
+.timeline{position:relative;padding-left:28px}
+.timeline::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:2px;background:linear-gradient(to bottom,var(--rose),var(--violet),var(--teal))}
+.timeline-item{position:relative;margin-bottom:24px}
+.timeline-dot{position:absolute;left:-24px;top:4px;width:14px;height:14px;border-radius:50%;border:2px solid var(--white);box-shadow:0 0 0 2px var(--violet);background:var(--violet)}
+.timeline-dot.rose{background:var(--rose);box-shadow:0 0 0 2px var(--rose)}
+.timeline-dot.teal{background:var(--teal);box-shadow:0 0 0 2px var(--teal)}
+.timeline-dot.amber{background:var(--amber);box-shadow:0 0 0 2px var(--amber)}
+.timeline-date{font-size:.72rem;color:var(--ink-soft);font-family:'DM Mono',monospace;margin-bottom:4px}
+.timeline-card{background:var(--white);border-radius:14px;padding:14px 16px;box-shadow:0 2px 10px rgba(45,38,64,.06);border:1px solid rgba(124,47,214,.06)}
+.timeline-card-title{font-weight:600;font-size:.9rem;color:var(--ink);margin-bottom:4px}
+.timeline-card-text{font-size:.82rem;color:var(--ink-mid);line-height:1.6}
+.timeline-photo{width:100%;height:120px;object-fit:cover;border-radius:10px;margin-top:10px}
+
+/* Health cards */
+.health-item{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid rgba(45,38,64,.05)}
+.health-item:last-child{border-bottom:none}
+.health-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0}
+.health-info{flex:1;padding:0 12px}
+.health-name{font-size:.875rem;font-weight:500;color:var(--ink)}
+.health-date{font-size:.75rem;color:var(--ink-soft);margin-top:2px}
+.health-status{font-size:.72rem;font-weight:600;padding:4px 10px;border-radius:100px}
+.status-ok{background:rgba(0,180,170,.1);color:var(--teal)}
+.status-due{background:rgba(245,168,0,.1);color:#B07800}
+.status-late{background:rgba(240,40,74,.1);color:var(--rose)}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(45,38,64,.5);z-index:200;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+.modal-overlay.open{display:flex}
+.modal{background:var(--white);border-radius:24px;padding:32px;max-width:500px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(45,38,64,.2)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.modal-title{font-family:'Lora',serif;font-size:1.3rem;color:var(--ink)}
+.modal-close{background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--ink-soft);width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:8px;transition:background .2s}
+.modal-close:hover{background:var(--bg)}
+.modal-form{display:flex;flex-direction:column;gap:16px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.photo-upload{border:2px dashed rgba(124,47,214,.2);border-radius:16px;padding:32px;text-align:center;cursor:pointer;transition:all .2s;color:var(--ink-soft)}
+.photo-upload:hover{border-color:var(--violet);color:var(--violet);background:rgba(124,47,214,.03)}
+.photo-upload-icon{font-size:2rem;margin-bottom:8px}
+.photo-upload-text{font-size:.85rem}
+.select-input{padding:12px 16px;border:1.5px solid rgba(124,47,214,.15);border-radius:12px;font-family:'DM Sans',sans-serif;font-size:.95rem;color:var(--ink);background:var(--bg);outline:none;transition:border-color .2s;appearance:none;cursor:pointer}
+.select-input:focus{border-color:var(--violet)}
+.textarea-input{padding:12px 16px;border:1.5px solid rgba(124,47,214,.15);border-radius:12px;font-family:'DM Sans',sans-serif;font-size:.95rem;color:var(--ink);background:var(--bg);outline:none;transition:border-color .2s;resize:vertical;min-height:80px}
+.textarea-input:focus{border-color:var(--violet)}
+
+/* Comunidade */
+.post-card{background:var(--white);border-radius:16px;padding:20px;box-shadow:0 2px 12px rgba(45,38,64,.06);border:1px solid rgba(124,47,214,.06);margin-bottom:16px}
+.post-header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.post-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--rose),var(--violet));display:flex;align-items:center;justify-content:center;font-size:.9rem;font-weight:700;color:#fff;flex-shrink:0}
+.post-author{font-weight:500;font-size:.875rem;color:var(--ink)}
+.post-time{font-size:.75rem;color:var(--ink-soft)}
+.post-text{font-size:.875rem;color:var(--ink-mid);line-height:1.7;margin-bottom:12px}
+.post-actions{display:flex;gap:16px}
+.post-action{background:none;border:none;font-size:.8rem;color:var(--ink-soft);cursor:pointer;display:flex;align-items:center;gap:5px;transition:color .2s}
+.post-action:hover{color:var(--violet)}
+.post-action.liked{color:var(--rose)}
+.post-photo{width:100%;border-radius:12px;max-height:240px;object-fit:cover;margin-bottom:12px}
+
+/* Testamento */
+.testament-step{display:flex;gap:16px;padding:20px 0;border-bottom:1px solid rgba(45,38,64,.05)}
+.testament-step:last-child{border-bottom:none}
+.step-num{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--rose),var(--violet));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;flex-shrink:0}
+.step-content h4{font-weight:600;font-size:.9rem;color:var(--ink);margin-bottom:4px}
+.step-content p{font-size:.82rem;color:var(--ink-mid);line-height:1.6}
+.step-content .btn{margin-top:10px}
+
+/* Admin */
+.admin-table{width:100%;border-collapse:collapse}
+.admin-table th{text-align:left;padding:12px 16px;font-size:.75rem;font-weight:600;color:var(--ink-soft);letter-spacing:.06em;text-transform:uppercase;border-bottom:2px solid rgba(45,38,64,.06)}
+.admin-table td{padding:14px 16px;font-size:.875rem;color:var(--ink-mid);border-bottom:1px solid rgba(45,38,64,.04)}
+.admin-table tr:hover td{background:rgba(124,47,214,.02)}
+.plan-chip{font-size:.7rem;font-weight:700;padding:3px 10px;border-radius:100px;letter-spacing:.04em}
+.chip-free{background:rgba(154,144,176,.12);color:var(--ink-soft)}
+.chip-premium{background:rgba(124,47,214,.1);color:var(--violet)}
+.chip-duo{background:rgba(0,180,170,.1);color:var(--teal)}
+.chip-familia{background:rgba(245,168,0,.1);color:#B07800}
+.chip-active{background:rgba(0,180,170,.1);color:var(--teal)}
+.chip-inactive{background:rgba(240,40,74,.08);color:var(--rose)}
+
+/* Alertas */
+.alert{padding:14px 18px;border-radius:12px;font-size:.875rem;display:flex;align-items:flex-start;gap:10px;margin-bottom:16px}
+.alert-info{background:rgba(124,47,214,.08);border:1px solid rgba(124,47,214,.15);color:var(--violet)}
+.alert-warning{background:rgba(245,168,0,.08);border:1px solid rgba(245,168,0,.2);color:#8A6000}
+.alert-success{background:rgba(0,180,170,.08);border:1px solid rgba(0,180,170,.2);color:var(--teal)}
+
+/* Progress bar */
+.progress-bar{height:6px;background:rgba(124,47,214,.1);border-radius:100px;overflow:hidden;margin-top:8px}
+.progress-fill{height:100%;border-radius:100px;background:linear-gradient(90deg,var(--rose),var(--violet));transition:width .3s}
+
+/* Overlay sidebar mobile */
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(45,38,64,.5);z-index:99}
+
+/* ── RESPONSIVO ──────────────────────────────────────────── */
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .sidebar-overlay.open{display:block}
+  .main-content{margin-left:0;padding:80px 16px 100px}
+  .header-mobile{display:flex}
+  .grid-2,.grid-3,.grid-4{grid-template-columns:1fr}
+  .form-row{grid-template-columns:1fr}
+
+  /* Bottom nav mobile */
+  .bottom-nav{display:flex;position:fixed;bottom:0;left:0;right:0;background:var(--white);border-top:1px solid rgba(124,47,214,.08);z-index:98;box-shadow:0 -4px 20px rgba(45,38,64,.08)}
+  .bottom-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 4px 14px;border:none;background:transparent;cursor:pointer;color:var(--ink-soft);font-size:.6rem;gap:4px;transition:color .2s}
+  .bottom-nav-item.active{color:var(--violet)}
+  .bottom-nav-icon{font-size:1.3rem}
+}
+@media(min-width:769px){.bottom-nav{display:none}}
+
+/* Animações */
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.page.active{animation:fadeUp .3s ease both}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.loading{animation:pulse 1.5s ease-in-out infinite}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════
+     TELA DE AUTENTICAÇÃO
+══════════════════════════════════════════════════════ -->
+<div id="screen-auth">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <svg class="auth-logo-icon" viewBox="0 0 48 48" fill="none">
+        <circle cx="16" cy="16" r="7" fill="#F0284A"/>
+        <circle cx="32" cy="16" r="7" fill="#7C2FD6"/>
+        <polygon points="7,20 41,20 24,42" fill="#FF7850"/>
+        <ellipse cx="24" cy="21" rx="9" ry="7" fill="#C060A8" opacity=".6"/>
+        <ellipse cx="11" cy="10" rx="4.5" ry="5.5" fill="#F5A800"/>
+        <ellipse cx="21" cy="7" rx="4.5" ry="5.5" fill="#00B4AA"/>
+        <ellipse cx="31" cy="7" rx="4.5" ry="5.5" fill="#F0284A"/>
+        <ellipse cx="41" cy="10" rx="4.5" ry="5.5" fill="#7C2FD6"/>
+      </svg>
+      <div class="auth-logo-name">Patinha <span>Viva</span></div>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')">Entrar</button>
+      <button class="auth-tab" onclick="switchAuthTab('register')">Criar conta</button>
+    </div>
+
+    <!-- Login -->
+    <div id="auth-login">
+      <div class="auth-form">
+        <div class="form-group">
+          <label class="form-label">E-mail</label>
+          <input class="form-input" type="email" placeholder="seu@email.com.br"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Senha</label>
+          <input class="form-input" type="password" placeholder="••••••••"/>
+        </div>
+        <button class="btn-auth" onclick="enterApp()">Entrar na plataforma 🐾</button>
+        <div class="auth-divider">ou continue com</div>
+        <button class="btn-social" onclick="enterApp()">
+          <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+          Entrar com Google
+        </button>
+        <div class="auth-footer"><a href="#">Esqueci minha senha</a></div>
+      </div>
+    </div>
+
+    <!-- Cadastro -->
+    <div id="auth-register" style="display:none">
+      <div class="auth-form">
+        <div class="form-group">
+          <label class="form-label">Nome completo</label>
+          <input class="form-input" type="text" placeholder="Seu nome"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">E-mail</label>
+          <input class="form-input" type="email" placeholder="seu@email.com.br"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Senha</label>
+          <input class="form-input" type="password" placeholder="Mín. 8 caracteres"/>
+        </div>
+        <button class="btn-auth" onclick="registerUser()">Criar minha conta grátis 🐾</button>
+        <div class="auth-footer">Ao criar conta você aceita nossos <a href="#">Termos de Uso</a> e <a href="#">Política de Privacidade</a></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     APP PRINCIPAL
+══════════════════════════════════════════════════════ -->
+<div id="screen-app">
+
+  <!-- Overlay sidebar mobile -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <svg width="32" height="32" viewBox="0 0 48 48" fill="none">
+        <circle cx="16" cy="16" r="7" fill="#F0284A"/>
+        <circle cx="32" cy="16" r="7" fill="#7C2FD6"/>
+        <polygon points="7,20 41,20 24,42" fill="#FF7850"/>
+        <ellipse cx="11" cy="10" rx="4.5" ry="5.5" fill="#F5A800"/>
+        <ellipse cx="21" cy="7" rx="4.5" ry="5.5" fill="#00B4AA"/>
+        <ellipse cx="31" cy="7" rx="4.5" ry="5.5" fill="#F0284A"/>
+        <ellipse cx="41" cy="10" rx="4.5" ry="5.5" fill="#7C2FD6"/>
+      </svg>
+      <div class="sidebar-logo-name">Patinha <span>Viva</span></div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-label">Principal</div>
+        <button class="nav-item active" onclick="navigate('dashboard')">
+          <span class="nav-icon">🏠</span> Início
+        </button>
+        <button class="nav-item" onclick="navigate('pets')">
+          <span class="nav-icon">🐾</span> Meus Pets
+        </button>
+        <button class="nav-item" onclick="navigate('memorial')">
+          <span class="nav-icon">♡</span> Memorial
+        </button>
+        <button class="nav-item" onclick="navigate('saude')">
+          <span class="nav-icon">💊</span> PetVault Saúde
+        </button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Proteção</div>
+        <button class="nav-item" onclick="navigate('testamento')">
+          <span class="nav-icon">⚖</span> Testamento Pet
+        </button>
+        <button class="nav-item" onclick="navigate('comunidade')">
+          <span class="nav-icon">💬</span> Comunidade
+          <span class="nav-badge">3</span>
+        </button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Conta</div>
+        <button class="nav-item" onclick="navigate('plano')">
+          <span class="nav-icon">⭐</span> Meu Plano
+        </button>
+        <button class="nav-item" onclick="navigate('admin')">
+          <span class="nav-icon">🛡</span> Admin
+        </button>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="user-avatar">J</div>
+        <div>
+          <div class="user-name">Jorge</div>
+          <div class="user-plan">Plano Duo</div>
+        </div>
+      </div>
+      <button onclick="logout()" style="width:100%;margin-top:8px;padding:8px 12px;background:rgba(240,40,74,.1);border:none;border-radius:10px;color:rgba(255,255,255,.5);font-size:.8rem;cursor:pointer;transition:all .2s" onmouseover="this.style.background='rgba(240,40,74,.2)'" onmouseout="this.style.background='rgba(240,40,74,.1)'">↩ Sair</button>
+    </div>
+  </aside>
+
+  <!-- Header mobile -->
+  <header class="header-mobile">
+    <button class="btn-menu" onclick="toggleSidebar()">☰</button>
+    <div class="header-logo">Patinha <span>Viva</span></div>
+    <div style="width:32px"></div>
+  </header>
+
+  <!-- Bottom nav mobile -->
+  <nav class="bottom-nav">
+    <button class="bottom-nav-item active" onclick="navigate('dashboard')">
+      <span class="bottom-nav-icon">🏠</span>Início
+    </button>
+    <button class="bottom-nav-item" onclick="navigate('pets')">
+      <span class="bottom-nav-icon">🐾</span>Pets
+    </button>
+    <button class="bottom-nav-item" onclick="navigate('memorial')">
+      <span class="bottom-nav-icon">♡</span>Memorial
+    </button>
+    <button class="bottom-nav-item" onclick="navigate('saude')">
+      <span class="bottom-nav-icon">💊</span>Saúde
+    </button>
+    <button class="bottom-nav-item" onclick="navigate('comunidade')">
+      <span class="bottom-nav-icon">💬</span>Comunidade
+    </button>
+  </nav>
+
+  <!-- ── CONTEÚDO PRINCIPAL ──────────────────────────────── -->
+  <main class="main-content">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <div class="page-title">Olá, Jorge 🐾</div>
+        <div class="page-subtitle">Bem-vindo à sua área de memórias e proteção</div>
+      </div>
+
+      <div class="alert alert-info" style="margin-bottom:24px">
+        ⭐ Você está no plano <strong>Duo</strong> — 2 pets, 2 tutores, 2 testamentos por ano.
+        <a href="#" onclick="navigate('plano')" style="color:var(--violet);font-weight:600;margin-left:8px">Ver plano →</a>
+      </div>
+
+      <div class="grid-4" style="margin-bottom:28px">
+        <div class="stat-card">
+          <div class="stat-icon">🐾</div>
+          <div class="stat-value">2</div>
+          <div class="stat-label">Pets cadastrados</div>
+          <div class="stat-trend">↑ 1 este mês</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📸</div>
+          <div class="stat-value">47</div>
+          <div class="stat-label">Memórias salvas</div>
+          <div class="stat-trend">↑ 8 esta semana</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⚖</div>
+          <div class="stat-value">1</div>
+          <div class="stat-label">Testamento ativo</div>
+          <div class="stat-trend" style="color:var(--teal)">✓ Atualizado</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">💊</div>
+          <div class="stat-value">2</div>
+          <div class="stat-label">Vacinas próximas</div>
+          <div class="stat-trend" style="color:#B07800">⚠ Atenção</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">🐾 Meus pets</div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;align-items:center;gap:14px;padding:12px;background:var(--bg);border-radius:12px;cursor:pointer" onclick="navigate('memorial')">
+              <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#F3EEF9,#EAF5F8);display:flex;align-items:center;justify-content:center;font-size:1.6rem">🐕</div>
+              <div style="flex:1">
+                <div style="font-weight:600;font-size:.9rem;color:var(--ink)">Thor</div>
+                <div style="font-size:.75rem;color:var(--ink-soft)">Husky Siberiano · 3 anos</div>
+              </div>
+              <div style="font-size:.75rem;color:var(--teal);font-weight:500">✓ Saudável</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;padding:12px;background:var(--bg);border-radius:12px;cursor:pointer" onclick="navigate('memorial')">
+              <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#FFF8EC,#FFF0D0);display:flex;align-items:center;justify-content:center;font-size:1.6rem">🐈</div>
+              <div style="flex:1">
+                <div style="font-weight:600;font-size:.9rem;color:var(--ink)">Luna</div>
+                <div style="font-size:.75rem;color:var(--ink-soft)">Gata Siamesa · 5 anos</div>
+              </div>
+              <div style="font-size:.75rem;color:#B07800;font-weight:500">⚠ Vacina</div>
+            </div>
+          </div>
+          <button class="btn btn-ghost btn-sm" style="margin-top:14px;width:100%" onclick="navigate('pets')">Ver todos os pets</button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">💊 Próximos alertas</div>
+          <div class="health-item">
+            <div class="health-icon" style="background:rgba(245,168,0,.1)">💉</div>
+            <div class="health-info">
+              <div class="health-name">Vacina antirrábica — Luna</div>
+              <div class="health-date">Vence em 5 dias</div>
+            </div>
+            <span class="health-status status-due">Próxima</span>
+          </div>
+          <div class="health-item">
+            <div class="health-icon" style="background:rgba(240,40,74,.08)">🦠</div>
+            <div class="health-info">
+              <div class="health-name">Vermífugo — Thor</div>
+              <div class="health-date">Vence em 12 dias</div>
+            </div>
+            <span class="health-status status-due">Próxima</span>
+          </div>
+          <div class="health-item">
+            <div class="health-icon" style="background:rgba(0,180,170,.1)">🏥</div>
+            <div class="health-info">
+              <div class="health-name">Consulta de rotina — Thor</div>
+              <div class="health-date">Agendada para 15/06</div>
+            </div>
+            <span class="health-status status-ok">Agendado</span>
+          </div>
+          <button class="btn btn-ghost btn-sm" style="margin-top:14px;width:100%" onclick="navigate('saude')">Ver PetVault Saúde</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:20px">
+        <div class="card-title">📸 Memórias recentes</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:10px">
+          <div style="aspect-ratio:1;border-radius:12px;background:linear-gradient(135deg,#F3EEF9,#EAF5F8);display:flex;align-items:center;justify-content:center;font-size:2rem">🐕</div>
+          <div style="aspect-ratio:1;border-radius:12px;background:linear-gradient(135deg,#FFF8EC,#FFF0D0);display:flex;align-items:center;justify-content:center;font-size:2rem">🐈</div>
+          <div style="aspect-ratio:1;border-radius:12px;background:linear-gradient(135deg,#EBF8F7,#DCEEF6);display:flex;align-items:center;justify-content:center;font-size:2rem">🌳</div>
+          <div style="aspect-ratio:1;border-radius:12px;background:linear-gradient(135deg,#FDF0F2,#FBE4E8);display:flex;align-items:center;justify-content:center;font-size:2rem">🎾</div>
+          <div style="aspect-ratio:1;border-radius:12px;background:linear-gradient(135deg,#F3EEF9,#EAF5F8);display:flex;align-items:center;justify-content:center;font-size:2rem">🏠</div>
+          <div style="aspect-ratio:1;border-radius:12px;background:rgba(124,47,214,.06);border:2px dashed rgba(124,47,214,.2);display:flex;align-items:center;justify-content:center;font-size:1.5rem;cursor:pointer;color:var(--violet)" onclick="openModal('modal-memoria')">+</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:14px;width:100%" onclick="navigate('memorial')">Ver memorial completo</button>
+      </div>
+    </div>
+
+    <!-- MEUS PETS -->
+    <div class="page" id="page-pets">
+      <div class="page-header">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div class="page-title">Meus Pets 🐾</div>
+            <div class="page-subtitle">Cadastre e gerencie o perfil dos seus companheiros</div>
+          </div>
+          <button class="btn btn-primary" onclick="openModal('modal-pet')">+ Novo pet</button>
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <div class="pet-card" onclick="navigate('memorial')">
+          <div class="pet-card-cover" style="background:linear-gradient(135deg,#E8F4FD,#C5E8F5)">
+            <span style="font-size:5rem">🐕</span>
+          </div>
+          <div class="pet-card-body">
+            <div class="pet-card-name">Thor</div>
+            <div class="pet-card-info">Husky Siberiano · Macho · 3 anos · 28 kg</div>
+            <div class="pet-card-tags">
+              <span class="pet-tag tag-teal">✓ Saudável</span>
+              <span class="pet-tag tag-violet">♡ Memorial</span>
+              <span class="pet-tag tag-rose">⚖ Testamento</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pet-card" onclick="navigate('memorial')">
+          <div class="pet-card-cover" style="background:linear-gradient(135deg,#FFF8EC,#FFF0D0)">
+            <span style="font-size:5rem">🐈</span>
+          </div>
+          <div class="pet-card-body">
+            <div class="pet-card-name">Luna</div>
+            <div class="pet-card-info">Gata Siamesa · Fêmea · 5 anos · 4 kg</div>
+            <div class="pet-card-tags">
+              <span class="pet-tag tag-amber">⚠ Vacina</span>
+              <span class="pet-tag tag-violet">♡ Memorial</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pet-card pet-card-add" onclick="openModal('modal-pet')">
+          <div class="add-icon">+</div>
+          <div class="add-label">Adicionar pet</div>
+          <div style="font-size:.75rem;color:var(--ink-soft)">1 slot disponível no seu plano</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MEMORIAL -->
+    <div class="page" id="page-memorial">
+      <div class="page-header">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div>
+            <div class="page-title">Memorial Digital ♡</div>
+            <div class="page-subtitle">A história do seu pet, preservada para sempre</div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <select class="select-input" style="width:auto;padding:8px 14px;font-size:.85rem">
+              <option>🐕 Thor</option>
+              <option>🐈 Luna</option>
+            </select>
+            <button class="btn btn-primary btn-sm" onclick="openModal('modal-memoria')">+ Memória</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <div class="card" style="margin-bottom:20px">
+            <div style="display:flex;align-items:center;gap:16px">
+              <div style="width:72px;height:72px;border-radius:18px;background:linear-gradient(135deg,#E8F4FD,#C5E8F5);display:flex;align-items:center;justify-content:center;font-size:3rem">🐕</div>
+              <div>
+                <div style="font-family:'Lora',serif;font-size:1.4rem;color:var(--ink);font-weight:700">Thor</div>
+                <div style="font-size:.82rem;color:var(--ink-soft);margin-top:2px">Husky Siberiano · Macho · Nascido em Mar/2022</div>
+                <div style="display:flex;gap:8px;margin-top:8px">
+                  <span class="pet-tag tag-teal">3 anos</span>
+                  <span class="pet-tag tag-violet">28 kg</span>
+                  <span class="pet-tag tag-rose">Contagem, MG</span>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top:16px;padding-top:16px;border-top:1px solid rgba(45,38,64,.06)">
+              <div style="font-size:.8rem;color:var(--ink-soft);margin-bottom:8px">Progresso do memorial</div>
+              <div style="display:flex;justify-content:space-between;font-size:.75rem;color:var(--ink-mid);margin-bottom:4px"><span>47 memórias</span><span>78%</span></div>
+              <div class="progress-bar"><div class="progress-fill" style="width:78%"></div></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">📖 Sobre o Thor</div>
+            <p style="font-size:.875rem;color:var(--ink-mid);line-height:1.8">Thor chegou em casa num domingo chuvoso de março de 2022, com apenas 45 dias. Desde então, transformou cada manhã em aventura. Adora correr no parque, brincar com sua bolinha favorita e dormir nos pés da cama...</p>
+            <button class="btn btn-ghost btn-sm" style="margin-top:12px">✨ Gerar Livro de Memórias</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" style="justify-content:space-between">
+            <span>📅 Linha do Tempo</span>
+            <button class="btn btn-ghost btn-sm" onclick="openModal('modal-memoria')">+ Adicionar</button>
+          </div>
+          <div class="timeline">
+            <div class="timeline-item">
+              <div class="timeline-dot rose"></div>
+              <div class="timeline-date">Março 2022</div>
+              <div class="timeline-card">
+                <div class="timeline-card-title">🏠 Chegada em casa</div>
+                <div class="timeline-card-text">Thor chegou com 45 dias, pesando apenas 2,3 kg. Primeiro dia em casa foi de muito choro e mimos.</div>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-dot teal"></div>
+              <div class="timeline-date">Junho 2022</div>
+              <div class="timeline-card">
+                <div class="timeline-card-title">💉 Primeira vacina completa</div>
+                <div class="timeline-card-text">Thor completou o ciclo vacinal V10. Passou bem, apesar do nervosismo na clínica.</div>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-dot"></div>
+              <div class="timeline-date">Dezembro 2022</div>
+              <div class="timeline-card">
+                <div class="timeline-card-title">🎄 Primeiro Natal</div>
+                <div class="timeline-card-text">Thor destruiu dois presentes antes de abrirmos. Ganhou uma bolinha nova e ficou feliz.</div>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-dot amber"></div>
+              <div class="timeline-date">Março 2024</div>
+              <div class="timeline-card">
+                <div class="timeline-card-title">🎂 2 anos!</div>
+                <div class="timeline-card-text">Aniversário com bolo de cenoura pet-friendly. Thor amou cada pedacinho.</div>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-dot rose"></div>
+              <div class="timeline-date">Maio 2025</div>
+              <div class="timeline-card">
+                <div class="timeline-card-title">🌊 Primeira praia</div>
+                <div class="timeline-card-text">Viagem para Guarapari. Thor entrou no mar pela primeira vez e não queria sair!</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PETVAULT SAÚDE -->
+    <div class="page" id="page-saude">
+      <div class="page-header">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div>
+            <div class="page-title">PetVault Saúde 💊</div>
+            <div class="page-subtitle">Histórico veterinário centralizado e alertas automáticos</div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <select class="select-input" style="width:auto;padding:8px 14px;font-size:.85rem">
+              <option>🐕 Thor</option>
+              <option>🐈 Luna</option>
+            </select>
+            <button class="btn btn-primary btn-sm" onclick="openModal('modal-saude')">+ Registro</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert alert-warning">⚠ <strong>Luna</strong> tem uma vacina antirrábica vencendo em 5 dias. Agende com seu veterinário.</div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">💉 Carteira de Vacinação — Thor</div>
+          <div class="health-item">
+            <div class="health-icon" style="background:rgba(0,180,170,.1)">💉</div>
+            <div class="health-info">
+              <div class="health-name">V10 (Múltipla)</div>
+              <div class="health-date">Aplicada em 15/03/2025 · Próxima: 15/03/2026</div>
+            </div>
+            <span class="health-status status-ok">Em dia</span>
+          </div>
+          <div class="health-item">
+            <div class="health-icon" style="background:rgba(0,180,170,.1)">💉</div>
+            <div class="health-info">
+              <div class="health-name">Antirrábica</div>
+              <div class="health-date">Aplicada em 20/04/2025 · Próxima: 20/04/2026</div>
+            </div>
+            <span class="health-status status-ok">Em dia</span>
+          </div>
+          <div class="health-item">
+            <div class="health-icon" style="background:rgba(0,180,170,.1)">💊</div>
+            <div class="health-info">
+              <div class="health-name">Vermífugo</div>
+              <div class="health-date">Último em 01/03/2025 · Próximo: 01/06/2025</div>
+            </div>
+            <span class="health-status status-due">Próxima</span>
+          </div>
+          <div class="health-item">
+            <div class="health-icon" style="background:rgba(0,180,170,.1)">🦟</div>
+            <div class="health-info">
+              <div class="health-name">Antipulgas / Carrapatos</div>
+              <div class="health-date">Último em 10/05/2025 · Próximo: 10/06/2025</div>
+            </div>
+            <span class="health-status status-ok">Em dia</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🏥 Histórico de Consultas — Thor</div>
+          <div class="health-item">
+            <div class="health-icon" style="background:rgba(124,47,214,.1)">🏥</div>
+            <div class="health-info">
+              <div class="health-name">Consulta de rotina</div>
+              <div class="health-date">12/05/2025 · Clínica VetSaúde · Dr. Carlos</div>
+            </div>
+            <span class="health-status status-ok">Normal</span>
+          </div>
+          <div class="health-item">
+            <div class="health-icon" style="background:rgba(240,40,74,.08)">🚨</div>
+            <div class="health-info">
+              <div class="health-name">Emergência — vômito</div>
+              <div class="health-date">03/03/2025 · UPA Veterinária · Dra. Ana</div>
+            </div>
+            <span class="health-status status-ok">Resolvido</span>
+          </div>
+          <div class="health-item">
+            <div class="health-icon" style="background:rgba(124,47,214,.1)">🦷</div>
+            <div class="health-info">
+              <div class="health-name">Limpeza dentária</div>
+              <div class="health-date">15/01/2025 · Clínica VetSaúde · Dr. Carlos</div>
+            </div>
+            <span class="health-status status-ok">Normal</span>
+          </div>
+          <button class="btn btn-ghost btn-sm" style="margin-top:8px;width:100%">📋 Ver histórico completo</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TESTAMENTO PET -->
+    <div class="page" id="page-testamento">
+      <div class="page-header">
+        <div class="page-title">Testamento Pet ⚖</div>
+        <div class="page-subtitle">Proteja o futuro do seu pet com segurança jurídica</div>
+      </div>
+
+      <div class="alert alert-success">✓ Você tem 1 testamento ativo no plano Duo. Pode criar até 2 por ano.</div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">✅ Testamento do Thor — Ativo</div>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
+            <div style="display:flex;justify-content:space-between;padding:10px 14px;background:var(--bg);border-radius:10px">
+              <span style="font-size:.82rem;color:var(--ink-soft)">Guardião designado</span>
+              <span style="font-size:.82rem;font-weight:600;color:var(--ink)">Maria Silva (irmã)</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:10px 14px;background:var(--bg);border-radius:10px">
+              <span style="font-size:.82rem;color:var(--ink-soft)">Recursos reservados</span>
+              <span style="font-size:.82rem;font-weight:600;color:var(--teal)">R$ 5.000,00</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:10px 14px;background:var(--bg);border-radius:10px">
+              <span style="font-size:.82rem;color:var(--ink-soft)">Veterinário de confiança</span>
+              <span style="font-size:.82rem;font-weight:600;color:var(--ink)">Dr. Carlos — VetSaúde</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:10px 14px;background:var(--bg);border-radius:10px">
+              <span style="font-size:.82rem;color:var(--ink-soft)">Última atualização</span>
+              <span style="font-size:.82rem;font-weight:600;color:var(--ink)">10/05/2025</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px">
+            <button class="btn btn-secondary btn-sm">✏ Editar</button>
+            <button class="btn btn-ghost btn-sm">📄 Baixar PDF</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">📝 Criar testamento para Luna</div>
+          <p style="font-size:.85rem;color:var(--ink-mid);line-height:1.7;margin-bottom:20px">Defina quem vai cuidar da Luna caso você não possa mais. Este documento tem validade jurídica e é gerado com suporte da Viana Advocacia.</p>
+          <div class="testament-step">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <h4>Escolha o guardião</h4>
+              <p>Defina quem assume os cuidados da Luna — pode ser familiar, amigo ou instituição.</p>
+              <button class="btn btn-ghost btn-sm">Definir guardião</button>
+            </div>
+          </div>
+          <div class="testament-step">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <h4>Reserve recursos</h4>
+              <p>Indique o valor reservado para os cuidados futuros e como será transferido.</p>
+            </div>
+          </div>
+          <div class="testament-step">
+            <div class="step-num">3</div>
+            <div class="step-content">
+              <h4>Instruções de cuidado</h4>
+              <p>Rotina, alimentação, veterinário de confiança e necessidades especiais da Luna.</p>
+            </div>
+          </div>
+          <div class="testament-step">
+            <div class="step-num">4</div>
+            <div class="step-content">
+              <h4>Geração do documento</h4>
+              <p>Validação jurídica pela Viana Advocacia e geração do PDF com validade legal.</p>
+            </div>
+          </div>
+          <button class="btn btn-primary" style="width:100%;margin-top:8px">Iniciar testamento da Luna</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- COMUNIDADE -->
+    <div class="page" id="page-comunidade">
+      <div class="page-header">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div>
+            <div class="page-title">Comunidade 💬</div>
+            <div class="page-subtitle">Tutores que entendem o amor incondicional</div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="openModal('modal-post')">+ Compartilhar</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-bottom:24px;overflow-x:auto;padding-bottom:4px">
+        <button class="btn btn-primary btn-sm">Todos</button>
+        <button class="btn btn-secondary btn-sm">💔 Luto pet</button>
+        <button class="btn btn-secondary btn-sm">🎉 Comemorações</button>
+        <button class="btn btn-secondary btn-sm">💡 Dicas</button>
+        <button class="btn btn-secondary btn-sm">❓ Perguntas</button>
+      </div>
+
+      <div class="post-card">
+        <div class="post-header">
+          <div class="post-avatar" style="background:linear-gradient(135deg,var(--teal),var(--violet))">F</div>
+          <div>
+            <div class="post-author">Fernanda M.</div>
+            <div class="post-time">há 2 horas · Tutora da Luna 🐕</div>
+          </div>
+        </div>
+        <p class="post-text">Minha Luna completou 3 anos hoje! Fiz um bolinho de cenoura pet-friendly pra ela e ela amou demais 🥺❤️ Quem mais faz festa de aniversário pro seu pet?</p>
+        <img class="post-photo" src="https://images.unsplash.com/photo-1601979031925-424e53b6caaa?w=600&q=80" alt="Golden retriever"/>
+        <div class="post-actions">
+          <button class="post-action liked" onclick="this.classList.toggle('liked')">❤️ 24 curtidas</button>
+          <button class="post-action">💬 8 comentários</button>
+          <button class="post-action">↗ Compartilhar</button>
+        </div>
+      </div>
+
+      <div class="post-card">
+        <div class="post-header">
+          <div class="post-avatar" style="background:linear-gradient(135deg,var(--rose),var(--amber))">R</div>
+          <div>
+            <div class="post-author">Roberto A.</div>
+            <div class="post-time">há 5 horas · Tutor do Simba 🐈</div>
+          </div>
+        </div>
+        <p class="post-text">Perdi meu Simba semana passada depois de 12 anos juntos. Ele foi meu companheiro de todo dia. Agradeço à comunidade pelo apoio — poder registrar as memórias dele aqui na Patinha Viva me ajudou muito nesse processo de luto 💜</p>
+        <div class="post-actions">
+          <button class="post-action" onclick="this.classList.toggle('liked')">🤍 47 abraços</button>
+          <button class="post-action">💬 32 comentários</button>
+        </div>
+      </div>
+
+      <div class="post-card">
+        <div class="post-header">
+          <div class="post-avatar" style="background:linear-gradient(135deg,var(--teal),var(--rose))">C</div>
+          <div>
+            <div class="post-author">Camila S.</div>
+            <div class="post-time">ontem · Tutora da Mel 🐕</div>
+          </div>
+        </div>
+        <p class="post-text">Dica de ouro: já fizeram o Testamento Pet? Eu fiz pela plataforma e foi muito mais simples do que imaginei. A paz de espírito que isso dá não tem preço. Recomendo para todos os tutores aqui! ✅</p>
+        <div class="post-actions">
+          <button class="post-action" onclick="this.classList.toggle('liked')">❤️ 15 curtidas</button>
+          <button class="post-action">💬 6 comentários</button>
+          <button class="post-action">↗ Compartilhar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MEU PLANO -->
+    <div class="page" id="page-plano">
+      <div class="page-header">
+        <div class="page-title">Meu Plano ⭐</div>
+        <div class="page-subtitle">Gerencie sua assinatura e benefícios</div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card" style="border:2px solid rgba(124,47,214,.2)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <div style="font-family:'Lora',serif;font-size:1.3rem;color:var(--ink)">Plano Duo</div>
+            <span class="plan-chip chip-duo">ATIVO</span>
+          </div>
+          <div style="font-family:'Lora',serif;font-size:2.4rem;font-weight:700;color:var(--ink);margin-bottom:4px">R$ 49<span style="font-size:1.2rem;color:var(--ink-soft)">,90/mês</span></div>
+          <div style="font-size:.8rem;color:var(--ink-soft);margin-bottom:20px">Próxima cobrança: 15/06/2025</div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
+            <div style="display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--ink-mid)"><span style="color:var(--teal)">✓</span> 2 perfis de pets (2/2 utilizados)</div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--ink-mid)"><span style="color:var(--teal)">✓</span> Fotos e vídeos ilimitados</div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--ink-mid)"><span style="color:var(--teal)">✓</span> Memorial permanente</div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--ink-mid)"><span style="color:var(--teal)">✓</span> 2 Testamentos Pet por ano (1/2 usado)</div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--ink-mid)"><span style="color:var(--teal)">✓</span> Até 2 tutores na conta</div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--ink-mid)"><span style="color:var(--teal)">✓</span> PetVault Saúde completo</div>
+          </div>
+          <div style="display:flex;gap:10px">
+            <button class="btn btn-secondary btn-sm">Alterar plano</button>
+            <button class="btn btn-danger btn-sm">Cancelar</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🐾 Plaquinha QR Code</div>
+          <p style="font-size:.85rem;color:var(--ink-mid);line-height:1.7;margin-bottom:16px">Plaquinha física personalizada com QR code que abre o memorial do seu pet. Disponível para assinantes dos planos pagos.</p>
+          <div style="background:var(--bg);border-radius:12px;padding:16px;margin-bottom:16px">
+            <div style="font-size:.82rem;color:var(--ink-soft)">Valor por plaquinha</div>
+            <div style="font-family:'Lora',serif;font-size:1.6rem;font-weight:700;color:var(--ink)">R$ 49,90 <span style="font-size:.85rem;font-weight:400;color:var(--ink-soft)">+ frete</span></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+            <div style="font-size:.82rem;color:var(--ink-mid)">✓ Gravação a laser personalizada</div>
+            <div style="font-size:.82rem;color:var(--ink-mid)">✓ QR code com link para o memorial</div>
+            <div style="font-size:.82rem;color:var(--ink-mid)">✓ Material resistente à água</div>
+            <div style="font-size:.82rem;color:var(--ink-mid)">✓ Entrega em todo o Brasil</div>
+          </div>
+          <button class="btn btn-primary" style="width:100%">Pedir plaquinha</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADMIN -->
+    <div class="page" id="page-admin">
+      <div class="page-header">
+        <div class="page-title">Painel Admin 🛡</div>
+        <div class="page-subtitle">Gestão da plataforma Patinha Viva</div>
+      </div>
+
+      <div class="grid-4" style="margin-bottom:28px">
+        <div class="stat-card">
+          <div class="stat-icon">👥</div>
+          <div class="stat-value">1.247</div>
+          <div class="stat-label">Tutores cadastrados</div>
+          <div class="stat-trend">↑ 48 esta semana</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">💳</div>
+          <div class="stat-value">R$ 18.4k</div>
+          <div class="stat-label">Receita mensal (MRR)</div>
+          <div class="stat-trend">↑ 12% vs mês anterior</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🐾</div>
+          <div class="stat-value">2.891</div>
+          <div class="stat-label">Pets cadastrados</div>
+          <div class="stat-trend">↑ 89 esta semana</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📉</div>
+          <div class="stat-value">2.3%</div>
+          <div class="stat-label">Churn mensal</div>
+          <div class="stat-trend" style="color:var(--teal)">↓ Abaixo da média</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" style="justify-content:space-between">
+          <span>👥 Usuários recentes</span>
+          <button class="btn btn-secondary btn-sm">Ver todos</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Tutor</th>
+                <th>E-mail</th>
+                <th>Plano</th>
+                <th>Pets</th>
+                <th>Status</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Fernanda M.</strong></td>
+                <td>fernanda@email.com</td>
+                <td><span class="plan-chip chip-premium">PREMIUM</span></td>
+                <td>1</td>
+                <td><span class="plan-chip chip-active">Ativo</span></td>
+                <td><button class="btn btn-secondary btn-sm">Ver</button></td>
+              </tr>
+              <tr>
+                <td><strong>Roberto A.</strong></td>
+                <td>roberto@email.com</td>
+                <td><span class="plan-chip chip-duo">DUO</span></td>
+                <td>2</td>
+                <td><span class="plan-chip chip-active">Ativo</span></td>
+                <td><button class="btn btn-secondary btn-sm">Ver</button></td>
+              </tr>
+              <tr>
+                <td><strong>Camila S.</strong></td>
+                <td>camila@email.com</td>
+                <td><span class="plan-chip chip-familia">FAMÍLIA</span></td>
+                <td>3</td>
+                <td><span class="plan-chip chip-active">Ativo</span></td>
+                <td><button class="btn btn-secondary btn-sm">Ver</button></td>
+              </tr>
+              <tr>
+                <td><strong>Marcos T.</strong></td>
+                <td>marcos@email.com</td>
+                <td><span class="plan-chip chip-free">LIVRE</span></td>
+                <td>1</td>
+                <td><span class="plan-chip chip-inactive">Inativo</span></td>
+                <td><button class="btn btn-secondary btn-sm">Ver</button></td>
+              </tr>
+              <tr>
+                <td><strong>Juliana R.</strong></td>
+                <td>juliana@email.com</td>
+                <td><span class="plan-chip chip-premium">PREMIUM</span></td>
+                <td>1</td>
+                <td><span class="plan-chip chip-active">Ativo</span></td>
+                <td><button class="btn btn-secondary btn-sm">Ver</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-top:20px">
+        <div class="card">
+          <div class="card-title">📊 Distribuição de planos</div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:4px"><span>Livre</span><span style="color:var(--ink-soft)">48% · 599 tutores</span></div>
+              <div class="progress-bar"><div class="progress-fill" style="width:48%;background:var(--ink-soft)"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:4px"><span>Premium</span><span style="color:var(--violet)">28% · 349 tutores</span></div>
+              <div class="progress-bar"><div class="progress-fill" style="width:28%;background:var(--violet)"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:4px"><span>Duo</span><span style="color:var(--teal)">16% · 199 tutores</span></div>
+              <div class="progress-bar"><div class="progress-fill" style="width:16%;background:var(--teal)"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:4px"><span>Família</span><span style="color:var(--amber)">8% · 100 tutores</span></div>
+              <div class="progress-bar"><div class="progress-fill" style="width:8%;background:var(--amber)"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">⚙️ Ações rápidas</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <button class="btn btn-secondary" style="justify-content:flex-start">📧 Enviar e-mail para todos os usuários</button>
+            <button class="btn btn-secondary" style="justify-content:flex-start">💳 Ver todas as transações</button>
+            <button class="btn btn-secondary" style="justify-content:flex-start">🐾 Ver todos os pets cadastrados</button>
+            <button class="btn btn-secondary" style="justify-content:flex-start">⚖ Ver todos os testamentos</button>
+            <button class="btn btn-secondary" style="justify-content:flex-start">📊 Exportar relatório mensal</button>
+            <button class="btn btn-danger" style="justify-content:flex-start">🔒 Bloquear conta de usuário</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     MODAIS
+══════════════════════════════════════════════════════ -->
+
+<!-- Modal: Novo Pet -->
+<div class="modal-overlay" id="modal-pet">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🐾 Cadastrar novo pet</div>
+      <button class="modal-close" onclick="closeModal('modal-pet')">✕</button>
+    </div>
+    <div class="modal-form">
+      <div class="photo-upload">
+        <div class="photo-upload-icon">📸</div>
+        <div class="photo-upload-text">Clique para adicionar a foto do pet</div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Nome do pet</label>
+          <input class="form-input" placeholder="Ex: Thor"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Espécie</label>
+          <select class="select-input">
+            <option>🐕 Cão</option>
+            <option>🐈 Gato</option>
+            <option>🐇 Coelho</option>
+            <option>Outro</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Raça</label>
+          <input class="form-input" placeholder="Ex: Husky Siberiano"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sexo</label>
+          <select class="select-input">
+            <option>Macho</option>
+            <option>Fêmea</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Data de nascimento</label>
+          <input class="form-input" type="date"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Peso (kg)</label>
+          <input class="form-input" type="number" placeholder="Ex: 28"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">História / Descrição</label>
+        <textarea class="textarea-input" placeholder="Conte um pouco sobre seu pet..."></textarea>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="closeModal('modal-pet')">Cancelar</button>
+        <button class="btn btn-primary" onclick="salvarPet()">Cadastrar pet 🐾</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nova Memória -->
+<div class="modal-overlay" id="modal-memoria">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📸 Adicionar memória</div>
+      <button class="modal-close" onclick="closeModal('modal-memoria')">✕</button>
+    </div>
+    <div class="modal-form">
+      <div class="form-group">
+        <label class="form-label">Pet</label>
+        <select class="select-input">
+          <option>🐕 Thor</option>
+          <option>🐈 Luna</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Título da memória</label>
+        <input class="form-input" placeholder="Ex: Primeira praia, Aniversário de 2 anos..."/>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Data</label>
+          <input class="form-input" type="date"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tipo</label>
+          <select class="select-input">
+            <option>🎉 Marco especial</option>
+            <option>📸 Momento do dia a dia</option>
+            <option>💉 Saúde</option>
+            <option>🌊 Aventura</option>
+            <option>💔 In memoriam</option>
+          </select>
+        </div>
+      </div>
+      <div class="photo-upload">
+        <div class="photo-upload-icon">🖼</div>
+        <div class="photo-upload-text">Adicionar foto ou vídeo (opcional)</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descrição</label>
+        <textarea class="textarea-input" placeholder="Conta essa memória com carinho..."></textarea>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="closeModal('modal-memoria')">Cancelar</button>
+        <button class="btn btn-primary" onclick="salvarMemoria()">Salvar memória ♡</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Novo registro de saúde -->
+<div class="modal-overlay" id="modal-saude">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">💊 Novo registro de saúde</div>
+      <button class="modal-close" onclick="closeModal('modal-saude')">✕</button>
+    </div>
+    <div class="modal-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Pet</label>
+          <select class="select-input">
+            <option>🐕 Thor</option>
+            <option>🐈 Luna</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tipo</label>
+          <select class="select-input">
+            <option>💉 Vacina</option>
+            <option>💊 Medicamento</option>
+            <option>🏥 Consulta</option>
+            <option>🦟 Antipulgas</option>
+            <option>🦠 Vermífugo</option>
+            <option>🦷 Odontologia</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descrição</label>
+        <input class="form-input" placeholder="Ex: Vacina V10, Vermífugo Drontal..."/>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Data de aplicação</label>
+          <input class="form-input" type="date"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Próxima dose / retorno</label>
+          <input class="form-input" type="date"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Veterinário / Clínica</label>
+        <input class="form-input" placeholder="Ex: Dr. Carlos — VetSaúde"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Observações</label>
+        <textarea class="textarea-input" placeholder="Reações, dosagem, observações especiais..."></textarea>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="closeModal('modal-saude')">Cancelar</button>
+        <button class="btn btn-primary" onclick="closeModal('modal-saude')">Salvar registro 💊</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Novo post comunidade -->
+<div class="modal-overlay" id="modal-post">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">💬 Compartilhar com a comunidade</div>
+      <button class="modal-close" onclick="closeModal('modal-post')">✕</button>
+    </div>
+    <div class="modal-form">
+      <div class="form-group">
+        <label class="form-label">Categoria</label>
+        <select class="select-input">
+          <option>🎉 Comemoração</option>
+          <option>💔 Luto pet</option>
+          <option>💡 Dica</option>
+          <option>❓ Pergunta</option>
+          <option>💬 Bate-papo</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">O que você quer compartilhar?</label>
+        <textarea class="textarea-input" style="min-height:120px" placeholder="Conte sua história, dúvida ou conquista com seu pet..."></textarea>
+      </div>
+      <div class="photo-upload">
+        <div class="photo-upload-icon">📷</div>
+        <div class="photo-upload-text">Adicionar foto (opcional)</div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="closeModal('modal-post')">Cancelar</button>
+        <button class="btn btn-primary" onclick="closeModal('modal-post')">Publicar 🐾</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── AUTENTICAÇÃO ──────────────────────────────────────────
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach((t,i) => {
+    t.classList.toggle('active', (tab==='login'&&i===0)||(tab==='register'&&i===1));
+  });
+  document.getElementById('auth-login').style.display = tab==='login'?'block':'none';
+  document.getElementById('auth-register').style.display = tab==='register'?'block':'none';
+}
+
+function showAuthError(msg) {
+  let el = document.getElementById('auth-error');
+  if(!el) {
+    el = document.createElement('div');
+    el.id = 'auth-error';
+    el.style.cssText = 'background:rgba(240,40,74,.1);border:1px solid rgba(240,40,74,.2);color:#C0002A;padding:10px 14px;border-radius:10px;font-size:.85rem;margin-bottom:8px';
+    const form = document.querySelector('#auth-login .auth-form') || document.querySelector('#auth-register .auth-form');
+    if(form) form.prepend(el);
+  }
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+function showLoading(btn, loading) {
+  btn.disabled = loading;
+  btn.style.opacity = loading ? '0.7' : '1';
+  btn.textContent = loading ? 'Aguarde...' : btn.dataset.label;
+}
+
+async function enterApp() {
+  // LOGIN
+  const emailEl = document.querySelector('#auth-login input[type="email"]');
+  const passEl  = document.querySelector('#auth-login input[type="password"]');
+  const btn     = document.querySelector('#auth-login .btn-auth');
+  if(!btn.dataset.label) btn.dataset.label = btn.textContent;
+
+  const email = emailEl.value.trim();
+  const pass  = passEl.value;
+  if(!email || !pass) { showAuthError('Preencha e-mail e senha.'); return; }
+
+  showLoading(btn, true);
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+    showLoading(btn, false);
+    if(error) { 
+      if(error.message.includes('Invalid login')) showAuthError('E-mail ou senha incorretos.');
+      else if(error.message.includes('Email not confirmed')) showAuthError('Confirme seu e-mail antes de entrar.');
+      else showAuthError('Erro: ' + error.message);
+      return; 
+    }
+    await initApp(data.user);
+  } catch(e) {
+    showLoading(btn, false);
+    showAuthError('Erro de conexão. Verifique sua internet e tente novamente.');
+  }
+}
+
+async function registerUser() {
+  const nomeEl  = document.querySelector('#auth-register input[type="text"]');
+  const emailEl = document.querySelector('#auth-register input[type="email"]');
+  const passEl  = document.querySelector('#auth-register input[type="password"]');
+  const btn     = document.querySelector('#auth-register .btn-auth');
+  if(!btn.dataset.label) btn.dataset.label = btn.textContent;
+
+  const nome  = nomeEl.value.trim();
+  const email = emailEl.value.trim();
+  const pass  = passEl.value;
+  if(!nome || !email || !pass) { showAuthError('Preencha todos os campos.'); return; }
+  if(pass.length < 6) { showAuthError('Senha deve ter pelo menos 6 caracteres.'); return; }
+
+  showLoading(btn, true);
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email, password: pass,
+      options: { data: { nome } }
+    });
+    showLoading(btn, false);
+    if(error) { showAuthError('Erro: ' + error.message); return; }
+    if(data.user && !data.session) {
+      showAuthError('✅ Conta criada! Verifique seu e-mail para confirmar.');
+      return;
+    }
+    if(data.user && data.session) {
+      await initApp(data.user);
+    } else {
+      showAuthError('Algo deu errado. Tente novamente.');
+    }
+  } catch(e) {
+    showLoading(btn, false);
+    showAuthError('Erro de conexão: ' + e.message);
+  }
+}
+
+async function initApp(user) {
+  currentUser = user;
+  console.log('initApp chamado para:', user.email);
+  // Buscar perfil
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles').select('*').eq('id', user.id).single();
+  if(profileError) console.warn('Perfil não encontrado, usando dados do auth:', profileError.message);
+  currentProfile = profile;
+
+  // Buscar pets
+  const { data: pets } = await supabase
+    .from('pets').select('*').eq('tutor_id', user.id).eq('ativo', true);
+  userPets = pets || [];
+
+  // Atualizar UI
+  const primeiroNome = (profile?.nome || user.email).split(' ')[0];
+  document.querySelectorAll('.user-name').forEach(el => el.textContent = primeiroNome);
+  document.querySelectorAll('.user-plan').forEach(el => el.textContent = 'Plano ' + capitalizar(profile?.plano || 'livre'));
+  document.querySelectorAll('.user-avatar').forEach(el => el.textContent = primeiroNome[0].toUpperCase());
+
+  // Atualizar dashboard
+  updateDashboard();
+  renderPets();
+
+  document.getElementById('screen-auth').style.display = 'none';
+  document.getElementById('screen-app').style.display = 'block';
+}
+
+function capitalizar(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+async function logout() {
+  await supabase.auth.signOut();
+  currentUser = null; currentProfile = null; userPets = [];
+  document.getElementById('screen-app').style.display = 'none';
+  document.getElementById('screen-auth').style.display = 'flex';
+}
+
+function updateDashboard() {
+  // Stats reais
+  document.querySelector('#page-dashboard .stat-value:nth-child(1)') &&
+    (document.querySelectorAll('#page-dashboard .stat-value')[0].textContent = userPets.length);
+  const plano = currentProfile?.plano || 'livre';
+  const alertEl = document.querySelector('#page-dashboard .alert-info strong');
+  if(alertEl) alertEl.textContent = capitalizar(plano);
+}
+
+function renderPets() {
+  const grid = document.querySelector('#page-pets .grid-3');
+  if(!grid) return;
+
+  // Remover cards existentes (exceto o de adicionar)
+  const addCard = grid.querySelector('.pet-card-add');
+  grid.innerHTML = '';
+
+  const emojis = { cao:'🐕', gato:'🐈', coelho:'🐇', outro:'🐾' };
+
+  userPets.forEach(pet => {
+    const card = document.createElement('div');
+    card.className = 'pet-card reveal';
+    card.onclick = () => { currentPetId = pet.id; navigate('memorial'); loadMemorial(pet); };
+    card.innerHTML = `
+      <div class="pet-card-cover" style="background:linear-gradient(135deg,#F3EEF9,#EAF5F8)">
+        ${pet.foto_url ? `<img src="${pet.foto_url}" style="width:100%;height:100%;object-fit:cover"/>` : `<span style="font-size:5rem">${emojis[pet.especie]||'🐾'}</span>`}
+      </div>
+      <div class="pet-card-body">
+        <div class="pet-card-name">${pet.nome}</div>
+        <div class="pet-card-info">${pet.raca||pet.especie} · ${pet.sexo||''} ${pet.data_nascimento ? '· '+calcIdade(pet.data_nascimento) : ''}</div>
+        <div class="pet-card-tags">
+          <span class="pet-tag tag-violet">♡ Memorial</span>
+        </div>
+      </div>`;
+    grid.appendChild(card);
+  });
+
+  if(addCard) grid.appendChild(addCard);
+  else {
+    const add = document.createElement('div');
+    add.className = 'pet-card pet-card-add';
+    add.onclick = () => openModal('modal-pet');
+    add.innerHTML = '<div class="add-icon">+</div><div class="add-label">Adicionar pet</div>';
+    grid.appendChild(add);
+  }
+}
+
+function calcIdade(dataNasc) {
+  const d = new Date(dataNasc);
+  const anos = Math.floor((new Date() - d) / (365.25*24*3600*1000));
+  return anos < 1 ? 'Filhote' : anos + (anos===1?' ano':' anos');
+}
+
+async function loadMemorial(pet) {
+  const emojis = { cao:'🐕', gato:'🐈', coelho:'🐇', outro:'🐾' };
+  // Atualizar header do memorial
+  const petSelect = document.querySelector('#page-memorial select');
+
+  // Buscar memórias
+  const { data: memorias } = await supabase
+    .from('memorias').select('*')
+    .eq('pet_id', pet.id)
+    .order('data_memoria', { ascending: false });
+
+  const timeline = document.querySelector('#page-memorial .timeline');
+  if(!timeline) return;
+
+  if(!memorias || memorias.length === 0) {
+    timeline.innerHTML = `<div style="text-align:center;padding:32px;color:var(--ink-soft)">
+      <div style="font-size:3rem;margin-bottom:12px">📸</div>
+      <div>Nenhuma memória ainda.</div>
+      <button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="openModal('modal-memoria')">+ Adicionar primeira memória</button>
+    </div>`;
+    return;
+  }
+
+  const cores = ['rose','teal','','amber'];
+  timeline.innerHTML = memorias.map((m, i) => `
+    <div class="timeline-item">
+      <div class="timeline-dot ${cores[i%4]}"></div>
+      <div class="timeline-date">${new Date(m.data_memoria).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</div>
+      <div class="timeline-card">
+        <div class="timeline-card-title">${m.titulo}</div>
+        <div class="timeline-card-text">${m.descricao||''}</div>
+        ${m.foto_url ? `<img src="${m.foto_url}" class="timeline-photo"/>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+async function salvarPet() {
+  if(!currentUser) return;
+  const nome = document.querySelector('#modal-pet input[placeholder="Ex: Thor"]').value.trim();
+  const especie = document.querySelector('#modal-pet select').value === '🐕 Cão' ? 'cao' :
+                  document.querySelector('#modal-pet select').value === '🐈 Gato' ? 'gato' :
+                  document.querySelector('#modal-pet select').value === '🐇 Coelho' ? 'coelho' : 'outro';
+  const raca = document.querySelector('#modal-pet input[placeholder="Ex: Husky Siberiano"]').value.trim();
+  const sexo = document.querySelectorAll('#modal-pet select')[1].value === 'Macho' ? 'macho' : 'femea';
+  const dataNasc = document.querySelector('#modal-pet input[type="date"]').value;
+  const peso = document.querySelector('#modal-pet input[type="number"]').value;
+  const historia = document.querySelector('#modal-pet textarea').value.trim();
+
+  if(!nome) { alert('Digite o nome do pet'); return; }
+
+  const btn = document.querySelector('#modal-pet .btn-primary');
+  btn.textContent = 'Salvando...'; btn.disabled = true;
+
+  const { data, error } = await supabase.from('pets').insert({
+    tutor_id: currentUser.id, nome, especie, raca, sexo,
+    data_nascimento: dataNasc || null,
+    peso: peso || null, historia
+  }).select().single();
+
+  btn.textContent = 'Cadastrar pet 🐾'; btn.disabled = false;
+
+  if(error) { alert('Erro ao salvar: ' + error.message); return; }
+
+  userPets.push(data);
+  renderPets();
+  closeModal('modal-pet');
+}
+
+async function salvarMemoria() {
+  if(!currentUser || !currentPetId) return;
+  const titulo = document.querySelector('#modal-memoria input[placeholder*="Primeira praia"]').value.trim();
+  const data = document.querySelector('#modal-memoria input[type="date"]').value;
+  const descricao = document.querySelector('#modal-memoria textarea').value.trim();
+  const tipoSelect = document.querySelectorAll('#modal-memoria select')[1];
+  const tipoMap = {'🎉 Marco especial':'marco','📸 Momento do dia a dia':'momento','💉 Saúde':'saude','🌊 Aventura':'aventura','💔 In memoriam':'memoriam'};
+  const tipo = tipoMap[tipoSelect.value] || 'momento';
+
+  if(!titulo) { alert('Digite o título da memória'); return; }
+
+  const btn = document.querySelector('#modal-memoria .btn-primary');
+  btn.textContent = 'Salvando...'; btn.disabled = true;
+
+  const { error } = await supabase.from('memorias').insert({
+    pet_id: currentPetId, tutor_id: currentUser.id,
+    titulo, descricao, tipo,
+    data_memoria: data || new Date().toISOString().split('T')[0]
+  });
+
+  btn.textContent = 'Salvar memória ♡'; btn.disabled = false;
+  if(error) { alert('Erro: ' + error.message); return; }
+
+  closeModal('modal-memoria');
+  const pet = userPets.find(p => p.id === currentPetId);
+  if(pet) loadMemorial(pet);
+}
+
+// Verificar sessão ao carregar
+window.addEventListener('load', async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if(session) {
+    await initApp(session.user);
+  }
+});
+
+// ── NAVEGAÇÃO ─────────────────────────────────────────────
+function navigate(page) {
+  // Pages
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const target = document.getElementById('page-'+page);
+  if(target) target.classList.add('active');
+
+  // Sidebar nav
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if(n.getAttribute('onclick')?.includes("'"+page+"'")) n.classList.add('active');
+  });
+
+  // Bottom nav
+  document.querySelectorAll('.bottom-nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.bottom-nav-item').forEach(n => {
+    if(n.getAttribute('onclick')?.includes("'"+page+"'")) n.classList.add('active');
+  });
+
+  // Fechar sidebar mobile
+  if(window.innerWidth <= 768) {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').classList.remove('open');
+  }
+
+  window.scrollTo(0,0);
+}
+
+// ── SIDEBAR MOBILE ────────────────────────────────────────
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('open');
+}
+
+// ── MODAIS ────────────────────────────────────────────────
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+// Fechar modal clicando fora
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', function(e) {
+    if(e.target === this) this.classList.remove('open');
+  });
+});
+
+// Tecla ESC
+document.addEventListener('keydown', e => {
+  if(e.key==='Escape') document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+});
+</script>
+</body>
+</html>
