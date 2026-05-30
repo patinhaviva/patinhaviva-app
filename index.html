@@ -5,6 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Patinha Viva — App</title>
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=DM+Mono:wght@400&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://lpddtwgqjtbpjvpslwtu.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_HGiHsjQ3RIGxgnc5T-w0Aw_fhg4nLmG';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let currentUser = null;
+let currentProfile = null;
+let userPets = [];
+let currentPetId = null;
+</script>
 <style>
 :root {
   --rose:#F0284A; --violet:#7C2FD6; --teal:#00B4AA; --amber:#F5A800;
