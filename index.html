@@ -15,6 +15,18 @@ let currentProfile = null;
 let userPets = [];
 let currentPetId = null;
 </script>
+<script>
+  /* PatinhaViva: garante que window.supabase seja o CLIENTE, nao a biblioteca */
+  (function () {
+    try {
+      if (window.supabase && typeof window.supabase.createClient === 'function') {
+        var _create = window.supabase.createClient;
+        window.supabase = _create('https://lpddtwgqjtbpjvpslwtu.supabase.co', 'sb_publishable_HGiHsjQ3RIGxgnc5T-w0Aw_fhg4nLmG');
+        console.log('[PatinhaViva] Supabase client OK:', typeof window.supabase.auth);
+      }
+    } catch (e) { console.error('[PatinhaViva] init Supabase falhou:', e); }
+  })();
+</script>
 <style>
 :root {
   --rose:#F0284A; --violet:#7C2FD6; --teal:#00B4AA; --amber:#F5A800;
