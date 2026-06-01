@@ -887,12 +887,16 @@ function switchAuthTab(tab) {
 }
 
 function showAuthError(msg) {
+  // Mostrar a mensagem no formulário VISÍVEL (login ou cadastro), não no oculto.
+  const onRegister = document.getElementById('auth-register').style.display !== 'none';
+  const form = document.querySelector(onRegister ? '#auth-register .auth-form' : '#auth-login .auth-form');
   let el = document.getElementById('auth-error');
+  // Se a mensagem estiver no formulário errado (troca de aba), recria no certo.
+  if(el && form && el.parentElement !== form) { el.remove(); el = null; }
   if(!el) {
     el = document.createElement('div');
     el.id = 'auth-error';
     el.style.cssText = 'background:rgba(240,40,74,.1);border:1px solid rgba(240,40,74,.2);color:#C0002A;padding:10px 14px;border-radius:10px;font-size:.85rem;margin-bottom:8px';
-    const form = document.querySelector('#auth-login .auth-form') || document.querySelector('#auth-register .auth-form');
     if(form) form.prepend(el);
   }
   el.textContent = msg;
