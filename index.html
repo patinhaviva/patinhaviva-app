@@ -9,7 +9,8 @@
 <script>
 const SUPABASE_URL = 'https://lpddtwgqjtbpjvpslwtu.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_HGiHsjQ3RIGxgnc5T-w0Aw_fhg4nLmG';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+window.supabase = sbClient; // evita conflito de nome com o global 'supabase' da lib (UMD)
 let currentUser = null;
 let currentProfile = null;
 let userPets = [];
