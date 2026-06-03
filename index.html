@@ -24,6 +24,7 @@ let currentUser = null;
 let currentProfile = null;
 let userPets = [];
 let currentPetId = null;
+let editingPetId = null; // id do pet em edição (null = cadastro novo)
 </script>
 <style>
 :root {
@@ -482,12 +483,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
             <div class="page-title">Meus Pets 🐾</div>
             <div class="page-subtitle">Cadastre e gerencie o perfil dos seus companheiros</div>
           </div>
-          <button class="btn btn-primary" onclick="openModal('modal-pet')">+ Novo pet</button>
+          <button class="btn btn-primary" onclick="abrirNovoPet()">+ Novo pet</button>
         </div>
       </div>
 
       <div class="grid-3">
-        <div class="pet-card pet-card-add" onclick="openModal('modal-pet')">
+        <div class="pet-card pet-card-add" onclick="abrirNovoPet()">
           <div class="add-icon">+</div>
           <div class="add-label">Adicionar pet</div>
         </div>
@@ -675,7 +676,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
 <div class="modal-overlay" id="modal-pet">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title">🐾 Cadastrar novo pet</div>
+      <div class="modal-title" id="modal-pet-title">🐾 Cadastrar novo pet</div>
       <button class="modal-close" onclick="closeModal('modal-pet')">✕</button>
     </div>
     <div class="modal-form">
@@ -726,9 +727,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
         <label class="form-label">História / Descrição</label>
         <textarea class="textarea-input" placeholder="Conte um pouco sobre seu pet..."></textarea>
       </div>
-      <div style="display:flex;gap:10px;justify-content:flex-end">
-        <button class="btn btn-secondary" onclick="closeModal('modal-pet')">Cancelar</button>
-        <button class="btn btn-primary" onclick="salvarPet()">Cadastrar pet 🐾</button>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button class="btn btn-sm" id="btn-excluir-pet" style="display:none;background:rgba(240,40,74,.1);color:var(--rose)" onclick="excluirPet()">🗑 Excluir</button>
+        <div style="display:flex;gap:10px;margin-left:auto">
+          <button class="btn btn-secondary" onclick="closeModal('modal-pet')">Cancelar</button>
+          <button class="btn btn-primary" onclick="salvarPet()">Cadastrar pet 🐾</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1185,6 +1189,7 @@ function renderPets() {
         <div class="pet-card-tags">
           <span class="pet-tag tag-violet">♡ Memorial</span>
         </div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:10px;width:100%" onclick="event.stopPropagation(); abrirEditarPet('${pet.id}')">✏️ Editar</button>
       </div>`;
     grid.appendChild(card);
   });
@@ -1193,7 +1198,7 @@ function renderPets() {
   else {
     const add = document.createElement('div');
     add.className = 'pet-card pet-card-add';
-    add.onclick = () => openModal('modal-pet');
+    add.onclick = () => abrirNovoPet();
     add.innerHTML = '<div class="add-icon">+</div><div class="add-label">Adicionar pet</div>';
     grid.appendChild(add);
   }
@@ -1414,8 +1419,52 @@ function abrirModalSaude(){
   openModal('modal-saude');
 }
 
+// Preenche os campos do modal de pet (pet=null limpa para cadastro novo)
+function preencherFormPet(pet){
+  const q = sel => document.querySelector('#modal-pet ' + sel);
+  q('input[placeholder="Ex: Thor"]').value = pet?.nome || '';
+  q('input[placeholder="Ex: Husky Siberiano"]').value = pet?.raca || '';
+  q('input[type="date"]').value = pet?.data_nascimento || '';
+  q('input[type="number"]').value = (pet?.peso ?? '');
+  q('textarea').value = pet?.historia || '';
+  const selects = document.querySelectorAll('#modal-pet select');
+  selects[0].value = { cao:'🐕 Cão', gato:'🐈 Gato', coelho:'🐇 Coelho', outro:'Outro' }[pet?.especie] || '🐕 Cão';
+  selects[1].value = pet?.sexo === 'femea' ? 'Fêmea' : 'Macho';
+}
+
+function abrirNovoPet(){
+  editingPetId = null;
+  preencherFormPet(null);
+  document.getElementById('modal-pet-title').textContent = '🐾 Cadastrar novo pet';
+  document.querySelector('#modal-pet .btn-primary').textContent = 'Cadastrar pet 🐾';
+  document.getElementById('btn-excluir-pet').style.display = 'none';
+  openModal('modal-pet'); // openModal limpa o preview de foto antigo
+}
+
+function abrirEditarPet(id){
+  const pet = userPets.find(p => p.id === id);
+  if(!pet) return;
+  editingPetId = id;
+  preencherFormPet(pet);
+  document.getElementById('modal-pet-title').textContent = '✏️ Editar pet';
+  document.querySelector('#modal-pet .btn-primary').textContent = 'Salvar alterações';
+  document.getElementById('btn-excluir-pet').style.display = 'inline-flex';
+  openModal('modal-pet'); // limpa preview antigo...
+  if(pet.foto_url){      // ...e mostra a foto atual como preview
+    const cont = document.querySelector('#modal-pet .photo-upload');
+    const img = document.createElement('img');
+    img.className = 'preview'; img.src = pet.foto_url;
+    cont.insertBefore(img, cont.querySelector('.photo-upload-icon'));
+    cont.querySelector('.photo-upload-text').textContent = 'Clique para trocar a foto';
+  }
+}
+
 async function salvarPet() {
   if(!currentUser) return;
+  const editando = !!editingPetId;
+  const petAtual = editando ? userPets.find(p => p.id === editingPetId) : null;
+  const labelPadrao = editando ? 'Salvar alterações' : 'Cadastrar pet 🐾';
+
   const nome = document.querySelector('#modal-pet input[placeholder="Ex: Thor"]').value.trim();
   const especie = document.querySelector('#modal-pet select').value === '🐕 Cão' ? 'cao' :
                   document.querySelector('#modal-pet select').value === '🐈 Gato' ? 'gato' :
@@ -1431,30 +1480,82 @@ async function salvarPet() {
   const btn = document.querySelector('#modal-pet .btn-primary');
   btn.textContent = 'Salvando...'; btn.disabled = true;
 
-  let fotoUrl = null;
-  try { fotoUrl = await uploadFotoArquivo('pet-foto-input'); }
+  // Se o usuário escolheu um novo arquivo, sobe; senão mantém a foto que já existia.
+  let novaFoto = null;
+  try { novaFoto = await uploadFotoArquivo('pet-foto-input'); }
   catch(e){
-    btn.textContent = 'Cadastrar pet 🐾'; btn.disabled = false;
-    alert('Não consegui enviar a foto: ' + e.message + '\n(O pet não foi salvo. Tente novamente ou cadastre sem foto.)');
+    btn.textContent = labelPadrao; btn.disabled = false;
+    alert('Não consegui enviar a foto: ' + e.message + '\n(Nada foi salvo. Tente novamente ou salve sem trocar a foto.)');
     return;
   }
+  const fotoUrl = novaFoto || (petAtual ? petAtual.foto_url : null);
 
-  const { data, error } = await supabase.from('pets').insert({
-    tutor_id: currentUser.id, nome, especie, raca, sexo,
+  const dados = {
+    nome, especie, raca, sexo,
     data_nascimento: dataNasc || null,
     peso: peso || null, historia, foto_url: fotoUrl
-  }).select().single();
+  };
 
-  btn.textContent = 'Cadastrar pet 🐾'; btn.disabled = false;
+  let data, error;
+  if(editando){
+    ({ data, error } = await supabase.from('pets').update(dados).eq('id', editingPetId).select().single());
+  } else {
+    ({ data, error } = await supabase.from('pets').insert({ tutor_id: currentUser.id, ...dados }).select().single());
+  }
 
+  btn.textContent = labelPadrao; btn.disabled = false;
   if(error) { alert('Erro ao salvar: ' + error.message); return; }
 
-  userPets.push(data);
-  currentPetId = currentPetId || data.id;
+  if(editando){
+    const idx = userPets.findIndex(p => p.id === editingPetId);
+    if(idx >= 0) userPets[idx] = data;
+  } else {
+    userPets.push(data);
+    currentPetId = currentPetId || data.id;
+  }
+
   populatePetSelectors();
   renderPets();
   renderDashboard();
+  // Se o memorial deste pet estiver aberto, recarrega para refletir as mudanças
+  if(editando && document.getElementById('page-memorial').classList.contains('active') && currentPetId === editingPetId){
+    loadMemorial(data);
+  }
   closeModal('modal-pet');
+  editingPetId = null;
+}
+
+async function excluirPet(){
+  if(!editingPetId) return;
+  const pet = userPets.find(p => p.id === editingPetId);
+  const nome = pet?.nome || 'este pet';
+  if(!confirm(`Excluir ${nome}?\n\nEle sai da sua lista de pets e some das telas. As memórias e os registros de saúde ficam guardados, mas deixam de aparecer. Esta ação não pode ser desfeita pela tela.`)) return;
+
+  const delBtn = document.getElementById('btn-excluir-pet');
+  delBtn.textContent = 'Excluindo...'; delBtn.disabled = true;
+
+  const idExcluido = editingPetId;
+  const { error } = await supabase.from('pets').update({ ativo:false }).eq('id', idExcluido);
+
+  delBtn.textContent = '🗑 Excluir'; delBtn.disabled = false;
+  if(error){ alert('Erro ao excluir: ' + error.message); return; }
+
+  userPets = userPets.filter(p => p.id !== idExcluido);
+  if(currentPetId === idExcluido) currentPetId = userPets[0]?.id || null;
+  editingPetId = null;
+
+  const memAtivo = document.getElementById('page-memorial').classList.contains('active');
+  const saudeAtivo = document.getElementById('page-saude').classList.contains('active');
+  closeModal('modal-pet');
+
+  populatePetSelectors();
+  renderPets();
+  renderDashboard();
+
+  // Se a tela aberta era do pet excluído, recarrega com o pet restante (ou estado vazio)
+  const restante = userPets.find(p => p.id === currentPetId) || null;
+  if(memAtivo){ const sel = document.getElementById('memorial-pet-select'); if(sel && restante) sel.value = restante.id; loadMemorial(restante); }
+  if(saudeAtivo){ const sel = document.getElementById('saude-pet-select'); if(sel && restante) sel.value = restante.id; loadSaude(restante); }
 }
 
 async function salvarMemoria() {
