@@ -36,6 +36,10 @@ let currentProfile = null;
 let userPets = [];
 let currentPetId = null;
 let editingPetId = null; // id do pet em edição (null = cadastro novo)
+let editingMemoriaId = null; // id da memória em edição (null = nova)
+let editingSaudeId = null;   // id do registro de saúde em edição (null = novo)
+let currentMemorias = [];    // cache das memórias do pet aberto (p/ editar)
+let currentSaudeRegs = [];   // cache dos registros de saúde do pet aberto (p/ editar)
 </script>
 <style>
 :root {
@@ -783,7 +787,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
 <div class="modal-overlay" id="modal-memoria">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title">📸 Adicionar memória</div>
+      <div class="modal-title" id="modal-memoria-title">📸 Adicionar memória</div>
       <button class="modal-close" onclick="closeModal('modal-memoria')">✕</button>
     </div>
     <div class="modal-form">
@@ -820,7 +824,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
         <label class="form-label">Descrição</label>
         <textarea class="textarea-input" placeholder="Conta essa memória com carinho..."></textarea>
       </div>
-      <div style="display:flex;gap:10px;justify-content:flex-end">
+      <div style="display:flex;gap:10px;justify-content:flex-end;align-items:center">
+        <button class="btn btn-sm" id="btn-excluir-memoria" style="display:none;background:rgba(240,40,74,.1);color:var(--rose);margin-right:auto" onclick="excluirMemoria()">🗑 Excluir</button>
         <button class="btn btn-secondary" onclick="closeModal('modal-memoria')">Cancelar</button>
         <button class="btn btn-primary" onclick="salvarMemoria()">Salvar memória ♡</button>
       </div>
@@ -832,7 +837,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
 <div class="modal-overlay" id="modal-saude">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title">💊 Novo registro de saúde</div>
+      <div class="modal-title" id="modal-saude-title">💊 Novo registro de saúde</div>
       <button class="modal-close" onclick="closeModal('modal-saude')">✕</button>
     </div>
     <div class="modal-form">
@@ -875,7 +880,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
         <label class="form-label">Observações</label>
         <textarea class="textarea-input" placeholder="Reações, dosagem, observações especiais..."></textarea>
       </div>
-      <div style="display:flex;gap:10px;justify-content:flex-end">
+      <div style="display:flex;gap:10px;justify-content:flex-end;align-items:center">
+        <button class="btn btn-sm" id="btn-excluir-saude" style="display:none;background:rgba(240,40,74,.1);color:var(--rose);margin-right:auto" onclick="excluirSaude()">🗑 Excluir</button>
         <button class="btn btn-secondary" onclick="closeModal('modal-saude')">Cancelar</button>
         <button class="btn btn-primary" onclick="salvarSaude()">Salvar registro 💊</button>
       </div>
@@ -1388,6 +1394,7 @@ async function loadMemorial(pet) {
     .from('memorias').select('*')
     .eq('pet_id', pet.id)
     .order('data_memoria', { ascending: false });
+  currentMemorias = memorias || [];
 
   const timeline = document.getElementById('memorial-timeline');
   if(!timeline) return;
@@ -1407,7 +1414,10 @@ async function loadMemorial(pet) {
       <div class="timeline-dot ${cores[i%4]}"></div>
       <div class="timeline-date">${new Date(m.data_memoria).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</div>
       <div class="timeline-card">
-        <div class="timeline-card-title">${m.titulo}</div>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+          <div class="timeline-card-title">${m.titulo}</div>
+          <button title="Editar memória" onclick="abrirEditarMemoria('${m.id}')" style="flex:none;background:none;border:none;cursor:pointer;font-size:.95rem;opacity:.55;padding:0 2px">✏️</button>
+        </div>
         <div class="timeline-card-text">${m.descricao||''}</div>
         ${m.foto_url ? (ehUrlVideo(m.foto_url) ? `<video src="${m.foto_url}" class="timeline-photo" controls playsinline></video>` : `<img src="${m.foto_url}" class="timeline-photo"/>`) : ''}
       </div>
@@ -1446,6 +1456,7 @@ async function loadSaude(pet){
       .order(SAUDE_COLS.dataAplicacao, { ascending:false });
     if(error) throw error;
     const regs = data || [];
+    currentSaudeRegs = regs;
 
     // Alertas (próximos 30 dias) deste pet
     if(alertas){
@@ -1476,6 +1487,7 @@ async function loadSaude(pet){
               <div class="health-date">${dataAp}${prox}${vet}</div>
             </div>
             <span class="health-status ${st.cls}">${st.txt}</span>
+            <button title="Editar registro" onclick="abrirEditarSaude('${r.id}')" style="flex:none;background:none;border:none;cursor:pointer;font-size:.95rem;opacity:.55;padding:0 2px;margin-left:6px">✏️</button>
           </div>`;
         }).join('');
       }
@@ -1504,12 +1516,13 @@ async function salvarSaude(){
 
   if(!dataAplicacao){ alert('Informe a data de aplicação.'); return; }
 
+  const editando = !!editingSaudeId;
+  const labelPadrao = editando ? 'Salvar alterações' : 'Salvar registro 💊';
+
   const btn = document.querySelector('#modal-saude .btn-primary');
   btn.textContent = 'Salvando...'; btn.disabled = true;
 
   const registro = {};
-  registro[SAUDE_COLS.pet] = petId;
-  registro[SAUDE_COLS.tutor] = currentUser.id;
   registro[SAUDE_COLS.tipo] = tipo;
   registro[SAUDE_COLS.descricao] = descricao;
   registro[SAUDE_COLS.dataAplicacao] = dataAplicacao;
@@ -1517,11 +1530,19 @@ async function salvarSaude(){
   registro[SAUDE_COLS.veterinario] = veterinario;
   registro[SAUDE_COLS.obs] = obs;
 
-  const { error } = await supabase.from('saude').insert(registro);
+  registro[SAUDE_COLS.pet] = petId;
+  let error;
+  if(editando){
+    ({ error } = await supabase.from('saude').update(registro).eq('id', editingSaudeId));
+  } else {
+    registro[SAUDE_COLS.tutor] = currentUser.id;
+    ({ error } = await supabase.from('saude').insert(registro));
+  }
 
-  btn.textContent = 'Salvar registro 💊'; btn.disabled = false;
+  btn.textContent = labelPadrao; btn.disabled = false;
   if(error){ alert('Erro ao salvar: ' + error.message + '\n(Verifique os nomes das colunas em SAUDE_COLS e o RLS.)'); return; }
 
+  editingSaudeId = null;
   closeModal('modal-saude');
   const pet = userPets.find(p => p.id === petId);
   const sel = document.getElementById('saude-pet-select');
@@ -1533,16 +1554,114 @@ async function salvarSaude(){
 // ── ABERTURA DE MODAIS (com guarda de pet) ────────────────
 function abrirModalMemoria(){
   if(!userPets.length){ alert('Cadastre um pet antes de adicionar memórias.'); navigate('pets'); return; }
+  editingMemoriaId = null;
+  document.getElementById('modal-memoria-title').textContent = '📸 Adicionar memória';
+  document.querySelector('#modal-memoria .btn-primary').textContent = 'Salvar memória ♡';
+  document.getElementById('btn-excluir-memoria').style.display = 'none';
+  // limpa os campos
+  document.querySelector('#modal-memoria input[placeholder*="Primeira praia"]').value = '';
+  document.querySelector('#modal-memoria input[type="date"]').value = '';
+  document.querySelector('#modal-memoria textarea').value = '';
+  document.querySelectorAll('#modal-memoria select')[1].selectedIndex = 0;
   const sel = document.getElementById('memoria-pet-select');
   if(sel && currentPetId) sel.value = currentPetId;
-  openModal('modal-memoria');
+  openModal('modal-memoria'); // limpa preview de foto antigo
 }
+
+function abrirEditarMemoria(id){
+  const m = currentMemorias.find(x => String(x.id) === String(id));
+  if(!m){ alert('Não encontrei essa memória. Recarregue a página.'); return; }
+  editingMemoriaId = m.id;
+  currentPetId = m.pet_id;
+  document.getElementById('modal-memoria-title').textContent = '✏️ Editar memória';
+  document.querySelector('#modal-memoria .btn-primary').textContent = 'Salvar alterações';
+  document.getElementById('btn-excluir-memoria').style.display = 'inline-flex';
+  // preenche os campos
+  document.querySelector('#modal-memoria input[placeholder*="Primeira praia"]').value = m.titulo || '';
+  document.querySelector('#modal-memoria input[type="date"]').value = m.data_memoria || '';
+  document.querySelector('#modal-memoria textarea').value = m.descricao || '';
+  const tipoTxt = {marco:'🎉 Marco especial', momento:'📸 Momento do dia a dia', saude:'💉 Saúde', aventura:'🌊 Aventura', memoriam:'💔 In memoriam'}[m.tipo] || '📸 Momento do dia a dia';
+  document.querySelectorAll('#modal-memoria select')[1].value = tipoTxt;
+  const sel = document.getElementById('memoria-pet-select');
+  if(sel) sel.value = m.pet_id;
+  openModal('modal-memoria'); // limpa preview antigo...
+  if(m.foto_url){              // ...e mostra a mídia atual como preview
+    const cont = document.querySelector('#modal-memoria .photo-upload');
+    const el = document.createElement(ehUrlVideo(m.foto_url) ? 'video' : 'img');
+    el.className = 'preview'; el.src = m.foto_url;
+    if(ehUrlVideo(m.foto_url)) el.controls = true;
+    cont.insertBefore(el, cont.querySelector('.photo-upload-icon'));
+    cont.querySelector('.photo-upload-text').textContent = 'Clique para trocar a foto/vídeo';
+  }
+}
+
+async function excluirMemoria(){
+  if(!editingMemoriaId) return;
+  if(!confirm('Excluir esta memória? Esta ação não pode ser desfeita.')) return;
+  const delBtn = document.getElementById('btn-excluir-memoria');
+  delBtn.textContent = 'Excluindo...'; delBtn.disabled = true;
+  const idEx = editingMemoriaId;
+  const { error } = await supabase.from('memorias').delete().eq('id', idEx);
+  delBtn.textContent = '🗑 Excluir'; delBtn.disabled = false;
+  if(error){ alert('Erro ao excluir: ' + error.message); return; }
+  editingMemoriaId = null;
+  closeModal('modal-memoria');
+  const pet = userPets.find(p => p.id === currentPetId);
+  if(pet) loadMemorial(pet);
+  renderDashboard();
+}
+
 function abrirModalSaude(){
   if(!userPets.length){ alert('Cadastre um pet antes de adicionar registros de saúde.'); navigate('pets'); return; }
+  editingSaudeId = null;
+  document.getElementById('modal-saude-title').textContent = '💊 Novo registro de saúde';
+  document.querySelector('#modal-saude .btn-primary').textContent = 'Salvar registro 💊';
+  document.getElementById('btn-excluir-saude').style.display = 'none';
+  // limpa os campos
+  document.querySelectorAll('#modal-saude select')[1].selectedIndex = 0;
+  document.querySelectorAll('#modal-saude input.form-input').forEach(i => i.value = '');
+  const ta = document.querySelector('#modal-saude textarea'); if(ta) ta.value = '';
   const sel = document.getElementById('saude-modal-pet-select');
   const atual = document.getElementById('saude-pet-select')?.value;
   if(sel && atual) sel.value = atual;
   openModal('modal-saude');
+}
+
+function abrirEditarSaude(id){
+  const r = currentSaudeRegs.find(x => String(x.id) === String(id));
+  if(!r){ alert('Não encontrei esse registro. Recarregue a página.'); return; }
+  editingSaudeId = r.id;
+  document.getElementById('modal-saude-title').textContent = '✏️ Editar registro de saúde';
+  document.querySelector('#modal-saude .btn-primary').textContent = 'Salvar alterações';
+  document.getElementById('btn-excluir-saude').style.display = 'inline-flex';
+  const tipoTxt = {vacina:'💉 Vacina', medicamento:'💊 Medicamento', consulta:'🏥 Consulta', antipulgas:'🦟 Antipulgas', vermifugo:'🦠 Vermífugo', odontologia:'🦷 Odontologia'}[r[SAUDE_COLS.tipo]] || '💉 Vacina';
+  document.querySelectorAll('#modal-saude select')[1].value = tipoTxt;
+  const inputs = document.querySelectorAll('#modal-saude input.form-input');
+  inputs[0].value = r[SAUDE_COLS.descricao] || '';
+  inputs[1].value = r[SAUDE_COLS.veterinario] || '';
+  const datas = document.querySelectorAll('#modal-saude input[type="date"]');
+  datas[0].value = r[SAUDE_COLS.dataAplicacao] || '';
+  datas[1].value = r[SAUDE_COLS.proximaDose] || '';
+  const ta = document.querySelector('#modal-saude textarea'); if(ta) ta.value = r[SAUDE_COLS.obs] || '';
+  const sel = document.getElementById('saude-modal-pet-select');
+  if(sel) sel.value = r[SAUDE_COLS.pet];
+  openModal('modal-saude');
+}
+
+async function excluirSaude(){
+  if(!editingSaudeId) return;
+  if(!confirm('Excluir este registro de saúde? Esta ação não pode ser desfeita.')) return;
+  const delBtn = document.getElementById('btn-excluir-saude');
+  delBtn.textContent = 'Excluindo...'; delBtn.disabled = true;
+  const idEx = editingSaudeId;
+  const { error } = await supabase.from('saude').delete().eq('id', idEx);
+  delBtn.textContent = '🗑 Excluir'; delBtn.disabled = false;
+  if(error){ alert('Erro ao excluir: ' + error.message); return; }
+  editingSaudeId = null;
+  closeModal('modal-saude');
+  const pet = userPets.find(p => p.id === (document.getElementById('saude-pet-select')?.value)) || userPets.find(p=>p.id===currentPetId);
+  if(pet) loadSaude(pet);
+  renderDashAlertas();
 }
 
 // Preenche os campos do modal de pet (pet=null limpa para cadastro novo)
@@ -1699,26 +1818,39 @@ async function salvarMemoria() {
 
   if(!titulo) { alert('Digite o título da memória'); return; }
 
+  const editando = !!editingMemoriaId;
+  const memAtual = editando ? currentMemorias.find(m => m.id === editingMemoriaId) : null;
+  const labelPadrao = editando ? 'Salvar alterações' : 'Salvar memória ♡';
+
   const btn = document.querySelector('#modal-memoria .btn-primary');
   btn.textContent = 'Salvando...'; btn.disabled = true;
 
-  let fotoUrl = null;
-  try { fotoUrl = await uploadFotoArquivo('memoria-foto-input'); }
+  // Se escolheu nova mídia, sobe; senão mantém a que já existia (no editar)
+  let novaFoto = null;
+  try { novaFoto = await uploadFotoArquivo('memoria-foto-input'); }
   catch(e){
-    btn.textContent = 'Salvar memória ♡'; btn.disabled = false;
-    alert('Não consegui enviar a foto: ' + e.message + '\n(A memória não foi salva. Tente novamente ou salve sem foto.)');
+    btn.textContent = labelPadrao; btn.disabled = false;
+    alert('Não consegui enviar a mídia: ' + e.message + '\n(A memória não foi salva. Tente novamente ou salve sem mídia.)');
     return;
   }
+  const fotoUrl = novaFoto || (memAtual ? memAtual.foto_url : null);
 
-  const { error } = await supabase.from('memorias').insert({
-    pet_id: petId, tutor_id: currentUser.id,
-    titulo, descricao, tipo, foto_url: fotoUrl,
+  const dados = {
+    pet_id: petId, titulo, descricao, tipo, foto_url: fotoUrl,
     data_memoria: data || new Date().toISOString().split('T')[0]
-  });
+  };
 
-  btn.textContent = 'Salvar memória ♡'; btn.disabled = false;
+  let error;
+  if(editando){
+    ({ error } = await supabase.from('memorias').update(dados).eq('id', editingMemoriaId));
+  } else {
+    ({ error } = await supabase.from('memorias').insert({ tutor_id: currentUser.id, ...dados }));
+  }
+
+  btn.textContent = labelPadrao; btn.disabled = false;
   if(error) { alert('Erro: ' + error.message); return; }
 
+  editingMemoriaId = null;
   closeModal('modal-memoria');
   const pet = userPets.find(p => p.id === petId);
   if(pet) loadMemorial(pet);
