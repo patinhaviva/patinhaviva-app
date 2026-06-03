@@ -20,6 +20,17 @@ const SUPABASE_URL = 'https://lpddtwgqjtbpjvpslwtu.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_HGiHsjQ3RIGxgnc5T-w0Aw_fhg4nLmG';
 const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 window.supabase = sbClient; // evita conflito de nome com o global 'supabase' da lib (UMD)
+
+// Redefinição de senha: captura SÍNCRONA (antes do supabase limpar a URL) + listener CEDO.
+// O client processa o link de recovery logo após ser criado, então o listener precisa
+// existir aqui no <head>, não lá embaixo (senão o evento dispara e ninguém escuta).
+window.__isRecovery = (window.location.hash + ' ' + window.location.search).indexOf('type=recovery') !== -1;
+sbClient.auth.onAuthStateChange((event) => {
+  if(event === 'PASSWORD_RECOVERY'){
+    window.__isRecovery = true;
+    if(typeof mostrarResetSenha === 'function') mostrarResetSenha();
+  }
+});
 let currentUser = null;
 let currentProfile = null;
 let userPets = [];
@@ -321,6 +332,37 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
         <button class="btn-auth" onclick="registerUser()">Criar minha conta grátis 🐾</button>
         <div class="auth-footer">Ao criar conta você aceita nossos <a href="#">Termos de Uso</a> e <a href="#">Política de Privacidade</a></div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     TELA: REDEFINIR SENHA (acionada pelo link de recuperação do e-mail)
+══════════════════════════════════════════════════════ -->
+<div id="screen-reset" style="display:none;align-items:center;justify-content:center;min-height:100vh;padding:24px;background:linear-gradient(135deg,#FAF0F8 0%,#F0EAF8 50%,#EAF5F8 100%)">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <img class="auth-logo-icon" src="icon-192.png" alt="Patinha Viva" style="border-radius:12px"/>
+      <div class="auth-logo-name">Patinha <span>Viva</span></div>
+    </div>
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-family:'Lora',serif;font-size:1.2rem;color:var(--ink);font-weight:700">Definir nova senha</div>
+      <div style="font-size:.82rem;color:var(--ink-soft);margin-top:4px">Escolha uma nova senha para a sua conta.</div>
+    </div>
+    <div class="auth-form">
+      <div id="reset-erro" style="display:none;background:rgba(240,40,74,.1);border:1px solid rgba(240,40,74,.2);color:#C0002A;padding:10px 14px;border-radius:10px;font-size:.85rem;margin-bottom:8px"></div>
+      <div class="form-group">
+        <label class="form-label">Nova senha</label>
+        <input id="reset-senha1" class="form-input" type="password" placeholder="Mín. 6 caracteres"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirmar nova senha</label>
+        <input id="reset-senha2" class="form-input" type="password" placeholder="Repita a senha"/>
+        <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:.8rem;color:var(--ink-soft);cursor:pointer;user-select:none">
+          <input type="checkbox" onclick="toggleResetSenha(this)"/> Mostrar senha
+        </label>
+      </div>
+      <button id="reset-btn" class="btn-auth" onclick="salvarNovaSenha()">Salvar nova senha</button>
     </div>
   </div>
 </div>
@@ -909,20 +951,51 @@ async function esqueciSenha(ev){
   }
 }
 
-// Quando o usuário volta pelo link do e-mail, o Supabase dispara PASSWORD_RECOVERY
-supabase.auth.onAuthStateChange((event, session) => {
-  if(event !== 'PASSWORD_RECOVERY') return;
-  // Deferir para fora do callback (evita deadlock do client ao chamar outras funções auth)
-  setTimeout(async () => {
-    const nova = window.prompt('Defina sua nova senha (mín. 6 caracteres):');
-    if(!nova || nova.length < 6){ alert('Senha não definida. Abra o link do e-mail novamente para redefinir.'); return; }
-    const { data, error } = await supabase.auth.updateUser({ password: nova });
-    if(error){ alert('Erro ao atualizar senha: ' + error.message); return; }
-    alert('✅ Senha atualizada! Você já está conectado.');
-    history.replaceState(null, '', window.location.pathname); // limpa o hash de recovery
-    if(data && data.user) await initApp(data.user);
-  }, 0);
-});
+// ── REDEFINIR SENHA (tela própria, acionada pelo link do e-mail) ──
+function mostrarResetSenha(){
+  const scr = document.getElementById('screen-reset');
+  if(!scr) return; // DOM ainda não pronto: o handler de 'load' chama de novo
+  const auth = document.getElementById('screen-auth');
+  const app  = document.getElementById('screen-app');
+  if(auth) auth.style.display = 'none';
+  if(app)  app.style.display = 'none';
+  scr.style.display = 'flex';
+  const p1 = document.getElementById('reset-senha1'); if(p1) p1.focus();
+}
+
+function toggleResetSenha(cb){
+  document.querySelectorAll('#screen-reset input[type="password"],#screen-reset input.form-input').forEach(inp => {
+    inp.type = cb.checked ? 'text' : 'password';
+  });
+}
+
+async function salvarNovaSenha(){
+  const p1 = document.getElementById('reset-senha1');
+  const p2 = document.getElementById('reset-senha2');
+  const btn = document.getElementById('reset-btn');
+  const erroEl = document.getElementById('reset-erro');
+  const erro = (m) => { erroEl.textContent = m; erroEl.style.display = 'block'; };
+  const nova = p1.value, conf = p2.value;
+  if(nova.length < 6){ erro('A senha deve ter pelo menos 6 caracteres.'); return; }
+  if(nova !== conf){ erro('As senhas não conferem. Digite a mesma senha nos dois campos.'); return; }
+  erroEl.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Salvando...';
+  let res;
+  try { res = await supabase.auth.updateUser({ password: nova }); }
+  catch(e){ btn.disabled = false; btn.textContent = 'Salvar nova senha'; erro('Erro de conexão. Tente novamente.'); return; }
+  btn.disabled = false; btn.textContent = 'Salvar nova senha';
+  if(res.error){
+    erro(/session/i.test(res.error.message)
+      ? 'O link de redefinição expirou ou já foi usado. Peça um novo em "Esqueci minha senha".'
+      : 'Não foi possível atualizar: ' + res.error.message);
+    return;
+  }
+  // sucesso: limpa o hash de recovery e entra no app
+  window.__isRecovery = false;
+  history.replaceState(null, '', window.location.pathname);
+  document.getElementById('screen-reset').style.display = 'none';
+  if(res.data && res.data.user) await initApp(res.data.user);
+}
 
 function showAuthError(msg) {
   // Mostrar a mensagem no formulário VISÍVEL (login ou cadastro), não no oculto.
@@ -1791,8 +1864,8 @@ async function excluirPost(id){
 
 // Verificar sessão ao carregar
 window.addEventListener('load', async () => {
-  // Se voltou pelo link de redefinição, deixa o fluxo PASSWORD_RECOVERY cuidar
-  if(window.location.hash.includes('type=recovery')) return;
+  // Se voltamos pelo link de redefinição, mostra a tela de nova senha (não entra no app)
+  if(window.__isRecovery){ mostrarResetSenha(); return; }
   const { data: { session } } = await supabase.auth.getSession();
   if(session) {
     await initApp(session.user);
