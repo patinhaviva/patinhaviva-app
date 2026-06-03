@@ -1024,7 +1024,8 @@ function showLoading(btn, loading) {
 async function enterApp() {
   // LOGIN
   const emailEl = document.querySelector('#auth-login input[type="email"]');
-  const passEl  = document.querySelector('#auth-login input[type="password"]');
+  // Pega o campo de senha mesmo quando "Mostrar senha" o transforma em type="text"
+  const passEl  = document.querySelector('#auth-login input:not([type="email"]):not([type="checkbox"])');
   const btn     = document.querySelector('#auth-login .btn-auth');
   if(!btn.dataset.label) btn.dataset.label = btn.textContent;
 
