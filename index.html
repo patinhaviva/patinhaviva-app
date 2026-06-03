@@ -189,7 +189,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
 .photo-upload:hover{border-color:var(--violet);color:var(--violet);background:rgba(124,47,214,.03)}
 .photo-upload-icon{font-size:2rem;margin-bottom:8px}
 .photo-upload-text{font-size:.85rem}
-.photo-upload img.preview{max-height:150px;max-width:100%;border-radius:10px;margin:0 auto 8px;display:block;object-fit:contain}
+.photo-upload .preview{max-height:180px;max-width:100%;border-radius:10px;margin:0 auto 8px;display:block;object-fit:contain}
 .select-input{padding:12px 16px;border:1.5px solid rgba(124,47,214,.15);border-radius:12px;font-family:'DM Sans',sans-serif;font-size:.95rem;color:var(--ink);background:var(--bg);outline:none;transition:border-color .2s;appearance:none;cursor:pointer}
 .select-input:focus{border-color:var(--violet)}
 .textarea-input{padding:12px 16px;border:1.5px solid rgba(124,47,214,.15);border-radius:12px;font-family:'DM Sans',sans-serif;font-size:.95rem;color:var(--ink);background:var(--bg);outline:none;transition:border-color .2s;resize:vertical;min-height:80px}
@@ -294,6 +294,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
         <div class="form-group">
           <label class="form-label">Senha</label>
           <input class="form-input" type="password" placeholder="••••••••"/>
+          <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:.8rem;color:var(--ink-soft);cursor:pointer;user-select:none">
+            <input type="checkbox" onclick="toggleSenha(this)"/> Mostrar senha
+          </label>
         </div>
         <button class="btn-auth" onclick="enterApp()">Entrar na plataforma 🐾</button>
         <div class="auth-divider">ou continue com</div>
@@ -771,9 +774,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
         </div>
       </div>
       <div class="photo-upload" onclick="document.getElementById('memoria-foto-input').click()">
-        <input type="file" id="memoria-foto-input" accept="image/*" hidden onchange="previewFoto(this)"/>
+        <input type="file" id="memoria-foto-input" accept="image/*,video/*" hidden onchange="previewFoto(this)"/>
         <div class="photo-upload-icon">🖼</div>
-        <div class="photo-upload-text" data-default="Adicionar foto (opcional)">Adicionar foto (opcional)</div>
+        <div class="photo-upload-text" data-default="Adicionar foto ou vídeo (opcional)">Adicionar foto ou vídeo (opcional)</div>
       </div>
       <div class="form-group">
         <label class="form-label">Descrição</label>
@@ -884,6 +887,11 @@ function switchAuthTab(tab) {
   });
   document.getElementById('auth-login').style.display = tab==='login'?'block':'none';
   document.getElementById('auth-register').style.display = tab==='register'?'block':'none';
+}
+
+function toggleSenha(cb){
+  const inp = cb.closest('.form-group').querySelector('input.form-input');
+  if(inp) inp.type = cb.checked ? 'text' : 'password';
 }
 
 function showAuthError(msg) {
@@ -1110,7 +1118,9 @@ async function renderDashboard(){
       memGrid.innerHTML = `<div style="grid-column:1/-1;font-size:.85rem;color:var(--ink-soft);padding:4px 0">Nenhuma memória registrada ainda.</div>` + addTile;
     } else {
       memGrid.innerHTML = recentes.map(m => m.foto_url
-        ? `<div style="aspect-ratio:1;border-radius:12px;overflow:hidden"><img src="${m.foto_url}" style="width:100%;height:100%;object-fit:cover"/></div>`
+        ? (ehUrlVideo(m.foto_url)
+            ? `<div style="aspect-ratio:1;border-radius:12px;overflow:hidden;position:relative;background:#000"><video src="${m.foto_url}" style="width:100%;height:100%;object-fit:cover" muted playsinline></video><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.6rem;pointer-events:none">▶️</div></div>`
+            : `<div style="aspect-ratio:1;border-radius:12px;overflow:hidden"><img src="${m.foto_url}" style="width:100%;height:100%;object-fit:cover"/></div>`)
         : `<div style="aspect-ratio:1;border-radius:12px;background:linear-gradient(135deg,#F3EEF9,#EAF5F8);display:flex;align-items:center;justify-content:center;font-size:1.6rem">📸</div>`
       ).join('') + addTile;
     }
@@ -1204,8 +1214,20 @@ function renderPets() {
   }
 }
 
+// Interpreta 'YYYY-MM-DD' no fuso LOCAL (evita o off-by-one de new Date('YYYY-MM-DD') que assume UTC)
+function parseDataLocal(s){
+  if(!s) return null;
+  const [y,m,d] = String(s).split('T')[0].split('-').map(Number);
+  if(!y||!m||!d) return null;
+  return new Date(y, m-1, d);
+}
+function formatarDataBR(s){
+  const d = parseDataLocal(s);
+  return d ? d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric' }) : '';
+}
+
 function calcIdade(dataNasc) {
-  const d = new Date(dataNasc);
+  const d = parseDataLocal(dataNasc) || new Date(dataNasc);
   const anos = Math.floor((new Date() - d) / (365.25*24*3600*1000));
   return anos < 1 ? 'Filhote' : anos + (anos===1?' ano':' anos');
 }
@@ -1246,7 +1268,7 @@ async function loadMemorial(pet) {
           <div style="width:72px;height:72px;border-radius:18px;background:linear-gradient(135deg,#F3EEF9,#EAF5F8);display:flex;align-items:center;justify-content:center;font-size:3rem">${pet.foto_url?`<img src="${pet.foto_url}" style="width:100%;height:100%;object-fit:cover;border-radius:18px"/>`:petEmoji(pet)}</div>
           <div>
             <div style="font-family:'Lora',serif;font-size:1.4rem;color:var(--ink);font-weight:700">${pet.nome}</div>
-            <div style="font-size:.82rem;color:var(--ink-soft);margin-top:2px">${[pet.raca||pet.especie, pet.sexo, pet.data_nascimento?'Nascido em '+new Date(pet.data_nascimento).toLocaleDateString('pt-BR',{month:'short',year:'numeric'}):''].filter(Boolean).join(' · ')}</div>
+            <div style="font-size:.82rem;color:var(--ink-soft);margin-top:2px">${[pet.raca||pet.especie, pet.sexo, pet.data_nascimento?'Nascido em '+formatarDataBR(pet.data_nascimento):''].filter(Boolean).join(' · ')}</div>
             <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
               ${pet.data_nascimento?`<span class="pet-tag tag-teal">${calcIdade(pet.data_nascimento)}</span>`:''}
               ${pet.peso?`<span class="pet-tag tag-violet">${pet.peso} kg</span>`:''}
@@ -1283,7 +1305,7 @@ async function loadMemorial(pet) {
       <div class="timeline-card">
         <div class="timeline-card-title">${m.titulo}</div>
         <div class="timeline-card-text">${m.descricao||''}</div>
-        ${m.foto_url ? `<img src="${m.foto_url}" class="timeline-photo"/>` : ''}
+        ${m.foto_url ? (ehUrlVideo(m.foto_url) ? `<video src="${m.foto_url}" class="timeline-photo" controls playsinline></video>` : `<img src="${m.foto_url}" class="timeline-photo"/>`) : ''}
       </div>
     </div>`).join('');
 }
@@ -1658,39 +1680,44 @@ function toggleSidebar() {
 // ── MODAIS ────────────────────────────────────────────────
 // ── FOTOS (preview + upload pro Supabase Storage) ─────────
 const FOTO_BUCKET = 'pet-fotos';
-const FOTO_MAX_MB = 5;
+const FOTO_MAX_MB = 5;    // imagens
+const VIDEO_MAX_MB = 50;  // vídeos (limite do plano grátis do Supabase por arquivo)
+
+// Detecta vídeo pela URL salva (para renderizar <video> em vez de <img>)
+function ehUrlVideo(url){ return /\.(mp4|webm|mov|m4v|ogv|ogg)(\?|$)/i.test(url || ''); }
 
 function previewFoto(input){
   const container = input.closest('.photo-upload');
   const textEl = container.querySelector('.photo-upload-text');
   const file = input.files && input.files[0];
   if(!file){ resetFotoUpload(container); return; }
-  if(!file.type.startsWith('image/')){
-    alert('Selecione um arquivo de imagem (JPG, PNG, etc.).');
+  const ehVideo = file.type.startsWith('video/');
+  const ehImagem = file.type.startsWith('image/');
+  if(!ehVideo && !ehImagem){
+    alert('Selecione uma imagem (JPG, PNG…) ou um vídeo (MP4, WebM…).');
     input.value = ''; resetFotoUpload(container); return;
   }
-  if(file.size > FOTO_MAX_MB * 1024 * 1024){
-    alert('Imagem muito grande (máx. ' + FOTO_MAX_MB + ' MB). Escolha uma menor.');
+  const maxMb = ehVideo ? VIDEO_MAX_MB : FOTO_MAX_MB;
+  if(file.size > maxMb * 1024 * 1024){
+    alert((ehVideo?'Vídeo':'Imagem') + ' muito grande (máx. ' + maxMb + ' MB). Escolha um arquivo menor.');
     input.value = ''; resetFotoUpload(container); return;
   }
-  const old = container.querySelector('img.preview');
-  if(old) old.remove();
-  const reader = new FileReader();
-  reader.onload = e => {
-    const img = document.createElement('img');
-    img.className = 'preview'; img.src = e.target.result;
-    container.insertBefore(img, container.querySelector('.photo-upload-icon'));
-  };
-  reader.readAsDataURL(file);
-  textEl.textContent = 'Clique para trocar a foto';
+  const old = container.querySelector('.preview');
+  if(old){ if(old.src && old.src.startsWith('blob:')) URL.revokeObjectURL(old.src); old.remove(); }
+  const url = URL.createObjectURL(file);
+  const el = document.createElement(ehVideo ? 'video' : 'img');
+  el.className = 'preview'; el.src = url;
+  if(ehVideo){ el.controls = true; }
+  container.insertBefore(el, container.querySelector('.photo-upload-icon'));
+  textEl.textContent = ehVideo ? 'Clique para trocar o vídeo' : 'Clique para trocar a foto';
 }
 
 function resetFotoUpload(container){
   if(!container) return;
   const input = container.querySelector('input[type="file"]');
   if(input) input.value = '';
-  const img = container.querySelector('img.preview');
-  if(img) img.remove();
+  const prev = container.querySelector('.preview');
+  if(prev){ if(prev.src && prev.src.startsWith('blob:')) URL.revokeObjectURL(prev.src); prev.remove(); }
   const textEl = container.querySelector('.photo-upload-text');
   if(textEl && textEl.dataset.default) textEl.textContent = textEl.dataset.default;
 }
