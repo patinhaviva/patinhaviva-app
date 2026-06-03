@@ -299,12 +299,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
           </label>
         </div>
         <button class="btn-auth" onclick="enterApp()">Entrar na plataforma 🐾</button>
-        <div class="auth-divider">ou continue com</div>
-        <button class="btn-social" onclick="enterApp()">
-          <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-          Entrar com Google
-        </button>
-        <div class="auth-footer"><a href="#">Esqueci minha senha</a></div>
+        <div class="auth-footer"><a href="#" onclick="esqueciSenha(event)">Esqueci minha senha</a></div>
       </div>
     </div>
 
@@ -595,18 +590,19 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
         </div>
       </div>
 
-      <div style="display:flex;gap:10px;margin-bottom:24px;overflow-x:auto;padding-bottom:4px">
-        <button class="btn btn-primary btn-sm">Todos</button>
-        <button class="btn btn-secondary btn-sm">💔 Luto pet</button>
-        <button class="btn btn-secondary btn-sm">🎉 Comemorações</button>
-        <button class="btn btn-secondary btn-sm">💡 Dicas</button>
-        <button class="btn btn-secondary btn-sm">❓ Perguntas</button>
+      <div id="feed-filtros" style="display:flex;gap:10px;margin-bottom:24px;overflow-x:auto;padding-bottom:4px">
+        <button class="btn btn-primary btn-sm" onclick="filtrarFeed(null,this)">Todos</button>
+        <button class="btn btn-secondary btn-sm" onclick="filtrarFeed('luto',this)">💔 Luto pet</button>
+        <button class="btn btn-secondary btn-sm" onclick="filtrarFeed('comemoracao',this)">🎉 Comemorações</button>
+        <button class="btn btn-secondary btn-sm" onclick="filtrarFeed('dica',this)">💡 Dicas</button>
+        <button class="btn btn-secondary btn-sm" onclick="filtrarFeed('pergunta',this)">❓ Perguntas</button>
       </div>
 
-      <div class="card" style="text-align:center;padding:48px 24px">
-        <div style="font-size:3rem;margin-bottom:12px">💬</div>
-        <div style="font-weight:600;margin-bottom:6px">Ainda não há publicações</div>
-        <div style="font-size:.85rem;color:var(--ink-soft)">A comunidade está sendo preparada. Em breve você poderá compartilhar histórias com outros tutores.</div>
+      <div id="feed-comunidade">
+        <div class="card" style="text-align:center;padding:48px 24px">
+          <div style="font-size:3rem;margin-bottom:12px">💬</div>
+          <div style="font-weight:600;margin-bottom:6px">Carregando publicações…</div>
+        </div>
       </div>
     </div>
 
@@ -867,13 +863,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
         <label class="form-label">O que você quer compartilhar?</label>
         <textarea class="textarea-input" style="min-height:120px" placeholder="Conte sua história, dúvida ou conquista com seu pet..."></textarea>
       </div>
-      <div class="photo-upload">
+      <div class="photo-upload" onclick="document.getElementById('post-foto-input').click()">
+        <input type="file" id="post-foto-input" accept="image/*,video/*" hidden onchange="previewFoto(this)"/>
         <div class="photo-upload-icon">📷</div>
-        <div class="photo-upload-text">Adicionar foto (opcional)</div>
+        <div class="photo-upload-text" data-default="Adicionar foto ou vídeo (opcional)">Adicionar foto ou vídeo (opcional)</div>
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end">
         <button class="btn btn-secondary" onclick="closeModal('modal-post')">Cancelar</button>
-        <button class="btn btn-primary" onclick="closeModal('modal-post')">Publicar 🐾</button>
+        <button class="btn btn-primary" onclick="salvarPost()">Publicar 🐾</button>
       </div>
     </div>
   </div>
@@ -893,6 +890,39 @@ function toggleSenha(cb){
   const inp = cb.closest('.form-group').querySelector('input.form-input');
   if(inp) inp.type = cb.checked ? 'text' : 'password';
 }
+
+// Esqueci minha senha — envia link de redefinição por e-mail
+async function esqueciSenha(ev){
+  if(ev) ev.preventDefault();
+  const emailEl = document.querySelector('#auth-login input[type="email"]');
+  let email = (emailEl && emailEl.value || '').trim();
+  email = (window.prompt('Digite o e-mail da sua conta para receber o link de redefinição de senha:', email) || '').trim();
+  if(!email) return;
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + window.location.pathname
+    });
+    if(error){ showAuthError('Não foi possível enviar: ' + error.message); return; }
+    showAuthError('✅ Se este e-mail tiver uma conta, enviamos um link para redefinir a senha. Verifique a caixa de entrada e o spam.');
+  } catch(e) {
+    showAuthError('Erro de conexão. Tente novamente.');
+  }
+}
+
+// Quando o usuário volta pelo link do e-mail, o Supabase dispara PASSWORD_RECOVERY
+supabase.auth.onAuthStateChange((event, session) => {
+  if(event !== 'PASSWORD_RECOVERY') return;
+  // Deferir para fora do callback (evita deadlock do client ao chamar outras funções auth)
+  setTimeout(async () => {
+    const nova = window.prompt('Defina sua nova senha (mín. 6 caracteres):');
+    if(!nova || nova.length < 6){ alert('Senha não definida. Abra o link do e-mail novamente para redefinir.'); return; }
+    const { data, error } = await supabase.auth.updateUser({ password: nova });
+    if(error){ alert('Erro ao atualizar senha: ' + error.message); return; }
+    alert('✅ Senha atualizada! Você já está conectado.');
+    history.replaceState(null, '', window.location.pathname); // limpa o hash de recovery
+    if(data && data.user) await initApp(data.user);
+  }, 0);
+});
 
 function showAuthError(msg) {
   // Mostrar a mensagem no formulário VISÍVEL (login ou cadastro), não no oculto.
@@ -1621,8 +1651,148 @@ async function salvarMemoria() {
   renderDashboard();
 }
 
+// ── COMUNIDADE (feed global de posts) ─────────────────────
+const POST_CATS = {
+  comemoracao: '🎉 Comemoração',
+  luto:        '💔 Luto pet',
+  dica:        '💡 Dica',
+  pergunta:    '❓ Pergunta',
+  batepapo:    '💬 Bate-papo'
+};
+// Texto da opção do <select> → slug guardado no banco
+const POST_CAT_SLUG = {
+  '🎉 Comemoração':'comemoracao', '💔 Luto pet':'luto', '💡 Dica':'dica',
+  '❓ Pergunta':'pergunta', '💬 Bate-papo':'batepapo'
+};
+let feedPosts = [];        // cache dos posts carregados
+let feedFiltro = null;     // categoria atual (null = todos)
+
+function escapeHtml(s){
+  return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function tempoRelativo(iso){
+  const d = new Date(iso); if(isNaN(d)) return '';
+  const seg = Math.floor((Date.now() - d.getTime())/1000);
+  if(seg < 60) return 'agora mesmo';
+  if(seg < 3600) return 'há ' + Math.floor(seg/60) + ' min';
+  if(seg < 86400) return 'há ' + Math.floor(seg/3600) + ' h';
+  if(seg < 604800) return 'há ' + Math.floor(seg/86400) + ' dia(s)';
+  return d.toLocaleDateString('pt-BR');
+}
+
+async function loadFeed(){
+  const box = document.getElementById('feed-comunidade');
+  if(!box) return;
+  const { data, error } = await supabase
+    .from('posts').select('*').order('criado_em', { ascending:false }).limit(100);
+  if(error){
+    box.innerHTML = `<div class="card" style="text-align:center;padding:32px 24px">
+      <div style="font-size:2rem;margin-bottom:8px">😕</div>
+      <div style="font-weight:600;margin-bottom:6px">Não foi possível carregar a comunidade</div>
+      <div style="font-size:.82rem;color:var(--ink-soft)">${escapeHtml(error.message)}</div></div>`;
+    return;
+  }
+  feedPosts = data || [];
+  renderFeed();
+}
+
+function renderFeed(){
+  const box = document.getElementById('feed-comunidade');
+  if(!box) return;
+  const lista = feedFiltro ? feedPosts.filter(p => p.categoria === feedFiltro) : feedPosts;
+  if(!lista.length){
+    box.innerHTML = `<div class="card" style="text-align:center;padding:48px 24px">
+      <div style="font-size:3rem;margin-bottom:12px">💬</div>
+      <div style="font-weight:600;margin-bottom:6px">${feedFiltro ? 'Nenhuma publicação nesta categoria' : 'Ainda não há publicações'}</div>
+      <div style="font-size:.85rem;color:var(--ink-soft)">${feedFiltro ? 'Tente outra categoria ou seja o primeiro a publicar aqui.' : 'Seja o primeiro a compartilhar uma história com a comunidade.'}</div></div>`;
+    return;
+  }
+  box.innerHTML = lista.map(p => {
+    const meu = currentUser && p.tutor_id === currentUser.id;
+    const nome = escapeHtml((p.autor_nome || 'Tutor(a)').split(' ')[0]);
+    const inicial = (nome[0]||'·').toUpperCase();
+    const cat = POST_CATS[p.categoria] || '💬 Comunidade';
+    const midia = p.foto_url
+      ? (ehUrlVideo(p.foto_url)
+          ? `<video src="${encodeURI(p.foto_url)}" controls playsinline style="width:100%;border-radius:12px;margin-top:12px;max-height:420px;background:#000"></video>`
+          : `<img src="${encodeURI(p.foto_url)}" style="width:100%;border-radius:12px;margin-top:12px;object-fit:cover"/>`)
+      : '';
+    return `<div class="card" style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#7C2FD6,#19B6C4);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700">${inicial}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:.92rem;color:var(--ink)">${nome}${meu?' <span style="font-size:.7rem;color:var(--violet);font-weight:600">(você)</span>':''}</div>
+          <div style="font-size:.75rem;color:var(--ink-soft)">${escapeHtml(cat)} · ${tempoRelativo(p.criado_em)}</div>
+        </div>
+        ${meu?`<button class="btn btn-secondary btn-sm" title="Excluir publicação" onclick="excluirPost('${p.id}')">🗑</button>`:''}
+      </div>
+      <div style="font-size:.92rem;color:var(--ink-mid);line-height:1.7;white-space:pre-wrap">${escapeHtml(p.texto)}</div>
+      ${midia}
+    </div>`;
+  }).join('');
+}
+
+function filtrarFeed(cat, btn){
+  feedFiltro = cat;
+  if(btn){
+    document.querySelectorAll('#feed-filtros button').forEach(b => { b.classList.remove('btn-primary'); b.classList.add('btn-secondary'); });
+    btn.classList.remove('btn-secondary'); btn.classList.add('btn-primary');
+  }
+  renderFeed();
+}
+
+async function salvarPost(){
+  if(!currentUser){ alert('Faça login para publicar.'); return; }
+  const catSel = document.querySelector('#modal-post select');
+  const texto  = document.querySelector('#modal-post textarea').value.trim();
+  if(!texto){ alert('Escreva algo para compartilhar.'); return; }
+  const categoria = POST_CAT_SLUG[catSel?.value] || 'batepapo';
+
+  const btn = document.querySelector('#modal-post .btn-primary');
+  if(!btn.dataset.label) btn.dataset.label = btn.textContent;
+  btn.textContent = 'Publicando...'; btn.disabled = true;
+
+  let fotoUrl = null;
+  try { fotoUrl = await uploadFotoArquivo('post-foto-input'); }
+  catch(e){
+    btn.textContent = btn.dataset.label; btn.disabled = false;
+    alert('Não consegui enviar a mídia: ' + e.message + '\n(A publicação não foi enviada. Tente novamente ou publique sem mídia.)');
+    return;
+  }
+
+  const { error } = await supabase.from('posts').insert({
+    tutor_id: currentUser.id,
+    autor_nome: (currentProfile?.nome || currentUser.email || 'Tutor(a)'),
+    categoria, texto, foto_url: fotoUrl,
+    criado_em: new Date().toISOString()
+  });
+
+  btn.textContent = btn.dataset.label; btn.disabled = false;
+  if(error){ alert('Erro ao publicar: ' + error.message); return; }
+
+  // limpar o formulário
+  document.querySelector('#modal-post textarea').value = '';
+  closeModal('modal-post');
+  feedFiltro = null;
+  document.querySelectorAll('#feed-filtros button').forEach((b,i) => {
+    b.classList.toggle('btn-primary', i===0); b.classList.toggle('btn-secondary', i!==0);
+  });
+  await loadFeed();
+}
+
+async function excluirPost(id){
+  if(!confirm('Excluir esta publicação? Esta ação não pode ser desfeita.')) return;
+  const { error } = await supabase.from('posts').delete().eq('id', id);
+  if(error){ alert('Erro ao excluir: ' + error.message); return; }
+  feedPosts = feedPosts.filter(p => p.id !== id);
+  renderFeed();
+}
+
 // Verificar sessão ao carregar
 window.addEventListener('load', async () => {
+  // Se voltou pelo link de redefinição, deixa o fluxo PASSWORD_RECOVERY cuidar
+  if(window.location.hash.includes('type=recovery')) return;
   const { data: { session } } = await supabase.auth.getSession();
   if(session) {
     await initApp(session.user);
@@ -1668,6 +1838,9 @@ function navigate(page) {
     const pet = userPets.find(p => p.id === sel?.value) || userPets[0];
     if(sel && pet) sel.value = pet.id;
     loadSaude(pet || null);
+  }
+  if(page === 'comunidade'){
+    loadFeed();
   }
 }
 
