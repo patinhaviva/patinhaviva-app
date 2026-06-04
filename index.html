@@ -209,6 +209,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
 .select-input:focus{border-color:var(--violet)}
 .textarea-input{padding:12px 16px;border:1.5px solid rgba(124,47,214,.15);border-radius:12px;font-family:'DM Sans',sans-serif;font-size:.95rem;color:var(--ink);background:var(--bg);outline:none;transition:border-color .2s;resize:vertical;min-height:80px}
 .textarea-input:focus{border-color:var(--violet)}
+.legal-doc{font-size:.86rem;color:var(--ink-mid);line-height:1.7}
+.legal-doc p{margin:0 0 12px}
+.legal-doc h4{font-family:'Lora',serif;font-size:1rem;color:var(--ink);margin:18px 0 6px}
+.legal-doc .legal-updated{font-size:.78rem;color:var(--ink-soft);margin-bottom:16px}
+.legal-doc .legal-note{font-size:.78rem;color:var(--ink-soft);font-style:italic;border-top:1px solid rgba(124,47,214,.12);padding-top:12px;margin-top:18px}
 
 /* Comunidade */
 .post-card{background:var(--white);border-radius:16px;padding:20px;box-shadow:0 2px 12px rgba(45,38,64,.06);border:1px solid rgba(124,47,214,.06);margin-bottom:16px}
@@ -334,7 +339,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
           <input class="form-input" type="password" placeholder="Mín. 8 caracteres"/>
         </div>
         <button class="btn-auth" onclick="registerUser()">Criar minha conta grátis 🐾</button>
-        <div class="auth-footer">Ao criar conta você aceita nossos <a href="#">Termos de Uso</a> e <a href="#">Política de Privacidade</a></div>
+        <div class="auth-footer">Ao criar conta você aceita nossos <a href="#" onclick="openModal('modal-termos');return false">Termos de Uso</a> e <a href="#" onclick="openModal('modal-privacidade');return false">Política de Privacidade</a></div>
       </div>
     </div>
   </div>
@@ -487,9 +492,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
           <div class="stat-label">Memórias salvas</div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon">⚖</div>
-          <div class="stat-value" id="stat-testamentos">0</div>
-          <div class="stat-label">Testamentos ativos</div>
+          <div class="stat-icon">💉</div>
+          <div class="stat-value" id="stat-saude">0</div>
+          <div class="stat-label">Registros de saúde</div>
         </div>
         <div class="stat-card">
           <div class="stat-icon">💊</div>
@@ -703,10 +708,62 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
         <div class="page-subtitle">Gestão da plataforma Patinha Viva</div>
       </div>
 
-      <div class="card" style="text-align:center;padding:48px 24px;max-width:640px;margin:0 auto">
+      <div id="admin-loading" class="card" style="text-align:center;padding:48px 24px;max-width:640px;margin:0 auto">
         <div style="font-size:3rem;margin-bottom:12px">🛡</div>
-        <div style="font-weight:600;margin-bottom:6px">Acesso restrito</div>
-        <div style="font-size:.85rem;color:var(--ink-soft)">As métricas administrativas serão exibidas a partir de dados reais agregados assim que o perfil de administrador for configurado.</div>
+        <div style="font-weight:600;margin-bottom:6px">Carregando métricas…</div>
+        <div style="font-size:.85rem;color:var(--ink-soft)">Lendo dados agregados da plataforma.</div>
+      </div>
+
+      <div id="admin-erro" class="card" style="display:none;text-align:center;padding:48px 24px;max-width:640px;margin:0 auto">
+        <div style="font-size:3rem;margin-bottom:12px">🛡</div>
+        <div style="font-weight:600;margin-bottom:6px">Não foi possível carregar as métricas</div>
+        <div id="admin-erro-msg" style="font-size:.85rem;color:var(--ink-soft)"></div>
+      </div>
+
+      <div id="admin-conteudo" style="display:none">
+        <div class="grid-4" style="margin-bottom:28px">
+          <div class="stat-card">
+            <div class="stat-icon">👥</div>
+            <div class="stat-value" id="adm-usuarios">—</div>
+            <div class="stat-label">Tutores cadastrados</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">🐾</div>
+            <div class="stat-value" id="adm-pets">—</div>
+            <div class="stat-label">Pets ativos</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">📸</div>
+            <div class="stat-value" id="adm-memorias">—</div>
+            <div class="stat-label">Memórias salvas</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">💬</div>
+            <div class="stat-value" id="adm-posts">—</div>
+            <div class="stat-label">Publicações</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">📊 Distribuição por plano</div>
+            <div id="adm-planos" style="display:flex;flex-direction:column;gap:10px"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">📈 Atividade</div>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--bg);border-radius:12px">
+                <span style="font-size:.85rem;color:var(--ink-mid)">Novos tutores (7 dias)</span>
+                <span style="font-family:'Lora',serif;font-weight:700;color:var(--ink)" id="adm-novos7d">—</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--bg);border-radius:12px">
+                <span style="font-size:.85rem;color:var(--ink-mid)">Registros de saúde</span>
+                <span style="font-family:'Lora',serif;font-weight:700;color:var(--ink)" id="adm-saude">—</span>
+              </div>
+            </div>
+            <button class="btn btn-ghost btn-sm" style="margin-top:14px;width:100%" onclick="renderAdmin()">Atualizar</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -920,6 +977,98 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
         <button class="btn btn-secondary" onclick="closeModal('modal-post')">Cancelar</button>
         <button class="btn btn-primary" onclick="salvarPost()">Publicar 🐾</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- TERMOS DE USO -->
+<div class="modal-overlay" id="modal-termos">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header">
+      <div class="modal-title">📄 Termos de Uso</div>
+      <button class="modal-close" onclick="closeModal('modal-termos')">✕</button>
+    </div>
+    <div class="legal-doc">
+      <p class="legal-updated">Última atualização: 3 de junho de 2026</p>
+      <p>Estes Termos de Uso regem o acesso e a utilização da plataforma <strong>Patinha Viva</strong> (o "Serviço"), disponível em patinhaviva.com.br. Ao criar uma conta ou utilizar o Serviço, você concorda com estes Termos.</p>
+
+      <h4>1. O que é a Patinha Viva</h4>
+      <p>A Patinha Viva é uma plataforma para tutores registrarem memórias, fotos, vídeos e informações de saúde de seus animais de estimação, além de participarem de uma comunidade de tutores. É uma ferramenta de organização e recordação afetiva — não substitui orientação veterinária profissional.</p>
+
+      <h4>2. Sua conta</h4>
+      <p>Você é responsável por manter a confidencialidade da sua senha e por toda atividade na sua conta. Os dados de cadastro devem ser verdadeiros e atualizados. Você deve ter pelo menos 18 anos para criar uma conta.</p>
+
+      <h4>3. Conteúdo que você publica</h4>
+      <p>Você mantém a titularidade das fotos, vídeos, textos e demais conteúdos que envia ("Seu Conteúdo"). Ao publicá-los, você concede à Patinha Viva uma licença limitada para armazenar e exibir esse conteúdo com a finalidade de operar o Serviço. Você declara ter os direitos necessários sobre o que publica.</p>
+
+      <h4>4. Conduta na comunidade</h4>
+      <p>É proibido publicar conteúdo ilegal, ofensivo, discriminatório, que viole direitos de terceiros ou que não tenha relação com a proposta da plataforma. Podemos remover conteúdos e suspender contas que descumpram estas regras. Cada usuário pode excluir as próprias publicações a qualquer momento.</p>
+
+      <h4>5. Planos, pagamentos e a Plaquinha QR</h4>
+      <p>O Serviço oferece um plano gratuito e planos pagos, com recursos e limites descritos no momento da contratação. Produtos físicos, como a Plaquinha QR, e valores de frete são informados antes da compra. Condições de cancelamento e reembolso seguem o Código de Defesa do Consumidor.</p>
+
+      <h4>6. Disponibilidade e limites técnicos</h4>
+      <p>Empenhamo-nos para manter o Serviço disponível, mas ele é fornecido "no estado em que se encontra". Limites de armazenamento e de tamanho de arquivo podem se aplicar conforme o plano. Recomendamos manter cópias próprias dos seus arquivos mais importantes.</p>
+
+      <h4>7. Encerramento</h4>
+      <p>Você pode encerrar sua conta a qualquer momento. Podemos suspender ou encerrar contas em caso de descumprimento destes Termos, mediante aviso quando possível.</p>
+
+      <h4>8. Alterações</h4>
+      <p>Estes Termos podem ser atualizados. Mudanças relevantes serão comunicadas pela plataforma ou por e-mail. O uso continuado após a atualização representa concordância com a nova versão.</p>
+
+      <h4>9. Contato</h4>
+      <p>Dúvidas sobre estes Termos podem ser enviadas para <strong>contato@patinhaviva.com.br</strong>.</p>
+
+      <p class="legal-note">Documento em formato preliminar, sujeito a revisão pela nossa equipe jurídica antes da versão definitiva.</p>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:8px">
+      <button class="btn btn-primary btn-sm" onclick="closeModal('modal-termos')">Entendi</button>
+    </div>
+  </div>
+</div>
+
+<!-- POLÍTICA DE PRIVACIDADE -->
+<div class="modal-overlay" id="modal-privacidade">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header">
+      <div class="modal-title">🔒 Política de Privacidade</div>
+      <button class="modal-close" onclick="closeModal('modal-privacidade')">✕</button>
+    </div>
+    <div class="legal-doc">
+      <p class="legal-updated">Última atualização: 3 de junho de 2026</p>
+      <p>Esta Política descreve como a <strong>Patinha Viva</strong> coleta, usa e protege seus dados pessoais, em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018 — LGPD).</p>
+
+      <h4>1. Dados que coletamos</h4>
+      <p>Coletamos: (a) <strong>dados de cadastro</strong> que você fornece — nome, e-mail e, opcionalmente, telefone e cidade; (b) <strong>conteúdo que você cria</strong> — perfis de pets, memórias, fotos, vídeos, registros de saúde e publicações na comunidade; (c) <strong>dados técnicos</strong> mínimos necessários para autenticação e funcionamento do Serviço.</p>
+
+      <h4>2. Para que usamos seus dados</h4>
+      <p>Usamos seus dados para criar e manter sua conta, exibir e organizar seu conteúdo, operar a comunidade, processar contratações de planos e da Plaquinha QR, enviar comunicações essenciais (como confirmação de e-mail e recuperação de senha) e cumprir obrigações legais.</p>
+
+      <h4>3. Base legal</h4>
+      <p>Tratamos seus dados com base na execução do contrato (prestação do Serviço), no seu consentimento (quando aplicável) e no cumprimento de obrigações legais e regulatórias.</p>
+
+      <h4>4. Compartilhamento</h4>
+      <p>Não vendemos seus dados. Compartilhamos informações apenas com prestadores que viabilizam o Serviço — como provedores de hospedagem, banco de dados e envio de e-mail (operadores que tratam dados sob nossas instruções) — e quando exigido por lei. Conteúdo publicado na <strong>comunidade é público</strong> para os demais usuários, junto ao seu nome de exibição.</p>
+
+      <h4>5. Armazenamento e segurança</h4>
+      <p>Seus dados são armazenados em infraestrutura com controles de acesso e isolamento por usuário. Adotamos medidas técnicas para proteger suas informações, embora nenhum sistema seja totalmente imune a incidentes.</p>
+
+      <h4>6. Seus direitos (LGPD)</h4>
+      <p>Você pode solicitar a qualquer momento: confirmação e acesso aos seus dados, correção, portabilidade, anonimização, eliminação e informações sobre compartilhamento. Você pode excluir suas publicações na comunidade pela própria plataforma e solicitar a exclusão da conta.</p>
+
+      <h4>7. Retenção</h4>
+      <p>Mantemos seus dados enquanto sua conta estiver ativa ou pelo tempo necessário para cumprir as finalidades acima e obrigações legais. Após a exclusão da conta, os dados são eliminados, ressalvadas hipóteses legais de guarda.</p>
+
+      <h4>8. Encarregado e contato</h4>
+      <p>Para exercer seus direitos ou tirar dúvidas sobre privacidade, entre em contato pelo e-mail <strong>contato@patinhaviva.com.br</strong>.</p>
+
+      <h4>9. Alterações</h4>
+      <p>Esta Política pode ser atualizada. Mudanças relevantes serão comunicadas pela plataforma ou por e-mail.</p>
+
+      <p class="legal-note">Documento em formato preliminar, sujeito a revisão pela nossa equipe jurídica antes da versão definitiva.</p>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:8px">
+      <button class="btn btn-primary btn-sm" onclick="closeModal('modal-privacidade')">Entendi</button>
     </div>
   </div>
 </div>
@@ -1188,20 +1337,23 @@ async function renderDashboard(){
   // Indicadores
   const setStat = (id,v) => { const el=document.getElementById(id); if(el) el.textContent = v; };
   setStat('stat-pets', userPets.length);
-  setStat('stat-testamentos', 0); // recurso ainda não ligado
 
-  // Memórias (contagem) + recentes
-  let totalMemorias = 0, recentes = [];
+  // Memórias (contagem) + recentes · Registros de saúde (contagem)
+  let totalMemorias = 0, totalSaude = 0, recentes = [];
   if(userPets.length){
     const ids = userPets.map(p => p.id);
     const { count } = await supabase.from('memorias')
       .select('*', { count:'exact', head:true }).in('pet_id', ids);
     totalMemorias = count || 0;
+    const { count: saudeCount } = await supabase.from('saude')
+      .select('*', { count:'exact', head:true }).in('pet_id', ids);
+    totalSaude = saudeCount || 0;
     const { data: recs } = await supabase.from('memorias')
       .select('*').in('pet_id', ids).order('data_memoria',{ascending:false}).limit(5);
     recentes = recs || [];
   }
   setStat('stat-memorias', totalMemorias);
+  setStat('stat-saude', totalSaude);
 
   // Lista "Meus pets"
   const petsList = document.getElementById('dash-pets-list');
@@ -2048,6 +2200,63 @@ function navigate(page) {
   if(page === 'comunidade'){
     loadFeed();
   }
+  if(page === 'admin'){
+    renderAdmin();
+  }
+}
+
+// ── ADMIN (métricas agregadas via RPC com checagem de is_admin) ──
+async function renderAdmin(){
+  const loading = document.getElementById('admin-loading');
+  const erro = document.getElementById('admin-erro');
+  const conteudo = document.getElementById('admin-conteudo');
+  loading.style.display = 'block';
+  erro.style.display = 'none';
+  conteudo.style.display = 'none';
+
+  const { data, error } = await supabase.rpc('admin_metrics');
+  if(error || !data){
+    loading.style.display = 'none';
+    erro.style.display = 'block';
+    document.getElementById('admin-erro-msg').textContent =
+      (error?.message || 'Resposta vazia') + '. Verifique se a função admin_metrics() foi criada no banco e se o seu perfil é administrador.';
+    return;
+  }
+
+  const set = (id,v) => { const el=document.getElementById(id); if(el) el.textContent = (v ?? 0).toLocaleString('pt-BR'); };
+  set('adm-usuarios', data.usuarios);
+  set('adm-pets', data.pets);
+  set('adm-memorias', data.memorias);
+  set('adm-posts', data.posts);
+  set('adm-novos7d', data.novos_7d);
+  set('adm-saude', data.saude);
+
+  const planosEl = document.getElementById('adm-planos');
+  const planos = data.planos || {};
+  const ordem = ['livre','premium','duo','familia'];
+  const rank = k => { const i = ordem.indexOf(k); return i === -1 ? 99 : i; };
+  const chaves = Object.keys(planos).sort((a,b) => rank(a) - rank(b));
+  if(!chaves.length){
+    planosEl.innerHTML = `<div style="font-size:.85rem;color:var(--ink-soft)">Sem dados.</div>`;
+  } else {
+    const total = chaves.reduce((s,k) => s + (planos[k]||0), 0) || 1;
+    planosEl.innerHTML = chaves.map(k => {
+      const n = planos[k] || 0;
+      const pct = Math.round(n/total*100);
+      const nome = (PLANOS[k]?.nome) || ('Plano ' + capitalizar(k));
+      return `<div>
+        <div style="display:flex;justify-content:space-between;font-size:.82rem;color:var(--ink-mid);margin-bottom:4px">
+          <span>${nome}</span><span style="font-weight:600;color:var(--ink)">${n} · ${pct}%</span>
+        </div>
+        <div style="height:8px;background:var(--bg);border-radius:6px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--violet),var(--teal))"></div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  loading.style.display = 'none';
+  conteudo.style.display = 'block';
 }
 
 // ── SIDEBAR MOBILE ────────────────────────────────────────
