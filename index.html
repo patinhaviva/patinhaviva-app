@@ -685,10 +685,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
 
         <div class="card">
           <div class="card-title">🐾 Plaquinha QR Code</div>
-          <p style="font-size:.85rem;color:var(--ink-mid);line-height:1.7;margin-bottom:16px">Plaquinha física personalizada com QR code que abre o memorial do seu pet. Disponível para assinantes dos planos pagos.</p>
+          <p style="font-size:.85rem;color:var(--ink-mid);line-height:1.7;margin-bottom:16px">Plaquinha física personalizada com QR code que abre o memorial do seu pet.</p>
           <div style="background:var(--bg);border-radius:12px;padding:16px;margin-bottom:16px">
             <div style="font-size:.82rem;color:var(--ink-soft)">Valor por plaquinha</div>
-            <div style="font-family:'Lora',serif;font-size:1.6rem;font-weight:700;color:var(--ink)">R$ 49,90 <span style="font-size:.85rem;font-weight:400;color:var(--ink-soft)">+ frete</span></div>
+            <div style="font-family:'Lora',serif;font-size:1.6rem;font-weight:700;color:var(--ink)">R$ 49,90 <span style="font-size:.85rem;font-weight:400;color:var(--ink-soft)">+ R$ 25,00 de frete</span></div>
+            <div style="font-size:.78rem;color:var(--ink-soft);margin-top:2px">Total R$ 74,90 · entrega em todo o Brasil</div>
           </div>
           <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
             <div style="font-size:.82rem;color:var(--ink-mid)">✓ Gravação a laser personalizada</div>
@@ -696,7 +697,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
             <div style="font-size:.82rem;color:var(--ink-mid)">✓ Material resistente à água</div>
             <div style="font-size:.82rem;color:var(--ink-mid)">✓ Entrega em todo o Brasil</div>
           </div>
-          <button class="btn btn-primary" style="width:100%">Pedir plaquinha</button>
+          <button class="btn btn-primary" style="width:100%" onclick="openModal('modal-plaquinha')">Pedir plaquinha</button>
         </div>
       </div>
     </div>
@@ -1069,6 +1070,66 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
     </div>
     <div style="display:flex;justify-content:flex-end;margin-top:8px">
       <button class="btn btn-primary btn-sm" onclick="closeModal('modal-privacidade')">Entendi</button>
+    </div>
+  </div>
+</div>
+
+<!-- PEDIR PLAQUINHA (endereço de entrega) -->
+<div class="modal-overlay" id="modal-plaquinha">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🐾 Pedir plaquinha QR</div>
+      <button class="modal-close" onclick="closeModal('modal-plaquinha')">✕</button>
+    </div>
+    <div class="modal-form">
+      <div style="background:var(--bg);border-radius:12px;padding:12px 14px;font-size:.82rem;color:var(--ink-mid)">
+        Plaquinha <strong>R$ 49,90</strong> + frete <strong>R$ 25,00</strong> = <strong>R$ 74,90</strong> · entrega em todo o Brasil
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nome do destinatário</label>
+        <input class="form-input" id="pq-destinatario" type="text" placeholder="Quem vai receber"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Telefone (WhatsApp)</label>
+        <input class="form-input" id="pq-telefone" type="tel" placeholder="(31) 99999-9999"/>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">CEP</label>
+          <input class="form-input" id="pq-cep" type="text" inputmode="numeric" placeholder="00000-000"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Número</label>
+          <input class="form-input" id="pq-numero" type="text" placeholder="123"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Endereço (rua/avenida)</label>
+        <input class="form-input" id="pq-endereco" type="text" placeholder="Rua Exemplo"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Complemento <span style="color:var(--ink-soft);font-weight:400">(opcional)</span></label>
+        <input class="form-input" id="pq-complemento" type="text" placeholder="Apto, bloco, referência"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Bairro</label>
+        <input class="form-input" id="pq-bairro" type="text" placeholder="Seu bairro"/>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Cidade</label>
+          <input class="form-input" id="pq-cidade" type="text" placeholder="Sua cidade"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">UF</label>
+          <input class="form-input" id="pq-uf" type="text" maxlength="2" placeholder="MG" style="text-transform:uppercase"/>
+        </div>
+      </div>
+      <div id="pq-erro" style="display:none;font-size:.82rem;color:var(--rose)"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="closeModal('modal-plaquinha')">Cancelar</button>
+        <button class="btn btn-primary" id="pq-btn" onclick="pedirPlaquinha()">Ir para o pagamento 🐾</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2321,6 +2382,56 @@ async function uploadFotoArquivo(inputId){
     .upload(path, file, { contentType: file.type, upsert: false });
   if(error) throw error;
   return supabase.storage.from(FOTO_BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
+// ── PEDIR PLAQUINHA (Checkout Pro via /api/criar-pagamento) ──
+async function pedirPlaquinha(){
+  const erro = document.getElementById('pq-erro');
+  const btn = document.getElementById('pq-btn');
+  erro.style.display = 'none';
+  const v = id => (document.getElementById(id)?.value || '').trim();
+  const dados = {
+    destinatario: v('pq-destinatario'), telefone: v('pq-telefone'),
+    cep: v('pq-cep'), numero: v('pq-numero'), endereco: v('pq-endereco'),
+    complemento: v('pq-complemento'), bairro: v('pq-bairro'),
+    cidade: v('pq-cidade'), uf: v('pq-uf').toUpperCase()
+  };
+  const obrig = ['destinatario','telefone','cep','numero','endereco','bairro','cidade','uf'];
+  if(obrig.some(k => !dados[k])){
+    erro.textContent = 'Preencha todos os campos (só o complemento é opcional).';
+    erro.style.display = 'block'; return;
+  }
+  if(dados.cep.replace(/\D/g,'').length !== 8){
+    erro.textContent = 'CEP inválido — use 8 dígitos.'; erro.style.display='block'; return;
+  }
+  if(dados.uf.length !== 2){
+    erro.textContent = 'UF inválida — use a sigla de 2 letras (ex.: MG).'; erro.style.display='block'; return;
+  }
+  const { data:{ session } } = await supabase.auth.getSession();
+  if(!session){ erro.textContent='Sua sessão expirou. Entre novamente.'; erro.style.display='block'; return; }
+
+  btn.disabled = true; const txt = btn.textContent; btn.textContent = 'Gerando pagamento…';
+  try {
+    const resp = await fetch('/api/criar-pagamento', {
+      method:'POST', headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ access_token: session.access_token, ...dados })
+    });
+    const out = await resp.json().catch(()=>({}));
+    if(resp.status === 503 || out.error === 'config'){
+      erro.textContent = 'Pagamentos em configuração — disponível em breve. 🐾';
+      erro.style.display='block'; return;
+    }
+    const url = out.init_point || out.sandbox_init_point;
+    if(!resp.ok || !url){
+      erro.textContent = out.message || 'Não foi possível iniciar o pagamento. Tente de novo.';
+      erro.style.display='block'; return;
+    }
+    window.location.href = url; // redireciona ao checkout do Mercado Pago
+  } catch(e){
+    erro.textContent = 'Erro de conexão. Tente novamente.'; erro.style.display='block';
+  } finally {
+    btn.disabled = false; btn.textContent = txt;
+  }
 }
 
 function openModal(id) {
