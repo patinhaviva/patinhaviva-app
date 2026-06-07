@@ -69,6 +69,11 @@ module.exports = async (req, res) => {
       auto_recurring: {
         frequency: 1,
         frequency_type: 'months',
+        // start_date é OBRIGATÓRIO na prática: sem ele o Mercado Pago responde
+        // 500 "Internal server error" ao criar a preapproval (em vez de um erro
+        // de validação claro). Um pequeno buffer no futuro evita rejeição por
+        // "start_date in the past" devido a diferença de relógio.
+        start_date: new Date(Date.now() + 3 * 60 * 1000).toISOString(),
         transaction_amount: info.centavos / 100,
         currency_id: 'BRL'
       },
