@@ -679,7 +679,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
             <div style="display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--ink-mid)"><span style="color:var(--teal)">✓</span> PetVault Saúde</div>
           </div>
           <div style="display:flex;gap:10px">
-            <button class="btn btn-secondary btn-sm">Ver planos</button>
+            <button class="btn btn-secondary btn-sm" onclick="openModal('modal-planos')">Ver planos</button>
           </div>
         </div>
 
@@ -1134,6 +1134,70 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
   </div>
 </div>
 
+<!-- ESCOLHER PLANO (assinatura) -->
+<div class="modal-overlay" id="modal-planos">
+  <div class="modal" style="max-width:780px">
+    <div class="modal-header">
+      <div class="modal-title">⭐ Escolha seu plano</div>
+      <button class="modal-close" onclick="closeModal('modal-planos')">✕</button>
+    </div>
+    <div style="font-size:.82rem;color:var(--ink-soft);margin-bottom:16px">Cobrança mensal · cancele quando quiser. Itens marcados <b>em breve</b> entram em atualizações futuras. O plano é ativado após a confirmação do pagamento.</div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap">
+
+      <div style="flex:1;min-width:210px;border:1.5px solid rgba(124,47,214,.18);border-radius:16px;padding:18px">
+        <div style="font-family:'Lora',serif;font-size:1.1rem;color:var(--ink)">Premium</div>
+        <div style="font-family:'Lora',serif;font-size:1.7rem;font-weight:700;color:var(--ink)">R$ 29,90<span style="font-size:.8rem;font-weight:400;color:var(--ink-soft)">/mês</span></div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin:12px 0;font-size:.8rem;color:var(--ink-mid)">
+          <div>✓ 1 perfil de pet</div>
+          <div>✓ Fotos e vídeos ilimitados</div>
+          <div>✓ Memorial permanente</div>
+          <div>✓ PetVault Saúde completo</div>
+          <div>✓ Comunidade</div>
+          <div>✓ Plaquinha QR (sob pedido)</div>
+          <div style="color:var(--ink-soft)">⏳ Testamento Pet (em breve)</div>
+          <div style="color:var(--ink-soft)">⏳ Até 2 tutores (em breve)</div>
+        </div>
+        <button class="btn btn-secondary" style="width:100%" onclick="pedirAssinatura('premium')">Assinar Premium</button>
+      </div>
+
+      <div style="flex:1;min-width:210px;border:2px solid var(--violet);border-radius:16px;padding:18px;position:relative">
+        <div style="position:absolute;top:-11px;left:18px;background:var(--violet);color:#fff;font-size:.68rem;font-weight:700;padding:3px 10px;border-radius:100px">★ MAIS ESCOLHIDO</div>
+        <div style="font-family:'Lora',serif;font-size:1.1rem;color:var(--ink)">Duo</div>
+        <div style="font-family:'Lora',serif;font-size:1.7rem;font-weight:700;color:var(--ink)">R$ 49,90<span style="font-size:.8rem;font-weight:400;color:var(--ink-soft)">/mês</span></div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin:12px 0;font-size:.8rem;color:var(--ink-mid)">
+          <div>✓ Até 2 perfis de pets</div>
+          <div>✓ Fotos e vídeos ilimitados</div>
+          <div>✓ Memorial permanente</div>
+          <div>✓ PetVault Saúde completo</div>
+          <div>✓ Comunidade</div>
+          <div>✓ Plaquinhas QR (sob pedido)</div>
+          <div style="color:var(--ink-soft)">⏳ Testamentos Pet (em breve)</div>
+          <div style="color:var(--ink-soft)">⏳ Até 2 tutores (em breve)</div>
+        </div>
+        <button class="btn btn-primary" style="width:100%" onclick="pedirAssinatura('duo')">Assinar Duo</button>
+      </div>
+
+      <div style="flex:1;min-width:210px;border:1.5px solid rgba(124,47,214,.18);border-radius:16px;padding:18px">
+        <div style="font-family:'Lora',serif;font-size:1.1rem;color:var(--ink)">Família</div>
+        <div style="font-family:'Lora',serif;font-size:1.7rem;font-weight:700;color:var(--ink)">R$ 79,90<span style="font-size:.8rem;font-weight:400;color:var(--ink-soft)">/mês</span></div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin:12px 0;font-size:.8rem;color:var(--ink-mid)">
+          <div>✓ Até 4 perfis de pets</div>
+          <div>✓ Fotos e vídeos ilimitados</div>
+          <div>✓ Memorial permanente</div>
+          <div>✓ PetVault Saúde completo</div>
+          <div>✓ Plaquinhas QR (sob pedido)</div>
+          <div style="color:var(--ink-soft)">⏳ Testamentos Pet (em breve)</div>
+          <div style="color:var(--ink-soft)">⏳ Até 4 tutores (em breve)</div>
+          <div style="color:var(--ink-soft)">⏳ Álbum compartilhado (em breve)</div>
+        </div>
+        <button class="btn btn-secondary" style="width:100%" onclick="pedirAssinatura('familia')">Assinar Família</button>
+      </div>
+
+    </div>
+    <div id="planos-erro" style="display:none;font-size:.82rem;color:var(--rose);margin-top:14px"></div>
+  </div>
+</div>
+
 <script>
 // ── AUTENTICAÇÃO ──────────────────────────────────────────
 function switchAuthTab(tab) {
@@ -1358,6 +1422,20 @@ async function initApp(user) {
 
   document.getElementById('screen-auth').style.display = 'none';
   document.getElementById('screen-app').style.display = 'block';
+
+  // Retorno de pagamento de assinatura / vinda da landing com plano escolhido (?plano=)
+  try {
+    const sp = new URLSearchParams(window.location.search);
+    const planoParam = (sp.get('plano') || '').toLowerCase();
+    const assinatura = sp.get('assinatura');
+    if(assinatura === 'sucesso'){
+      setTimeout(() => alert('Pagamento da assinatura recebido! 🐾\nSeu plano será ativado em instantes. Se ainda não aparecer, atualize a página em alguns segundos.'), 300);
+    }
+    if(['premium','duo','familia'].indexOf(planoParam) !== -1){
+      navigate('plano'); openModal('modal-planos');
+    }
+    if(planoParam || assinatura){ history.replaceState(null, '', window.location.pathname); }
+  } catch(e){}
 }
 
 function renderPlano(profile){
@@ -1365,8 +1443,10 @@ function renderPlano(profile){
   const info = PLANOS[plano] || PLANOS.livre;
   const nomeEl = document.getElementById('plano-nome');
   const precoEl = document.getElementById('plano-preco');
+  const cobEl = document.getElementById('plano-cobranca');
   if(nomeEl) nomeEl.textContent = info.nome;
   if(precoEl) precoEl.textContent = info.preco;
+  if(cobEl) cobEl.textContent = (plano === 'livre') ? 'Plano gratuito' : 'Cobrança mensal · cancele quando quiser';
 }
 
 function capitalizar(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
@@ -2431,6 +2511,38 @@ async function pedirPlaquinha(){
     erro.textContent = 'Erro de conexão. Tente novamente.'; erro.style.display='block';
   } finally {
     btn.disabled = false; btn.textContent = txt;
+  }
+}
+
+// ── ASSINAR PLANO (preapproval via /api/criar-assinatura) ──
+async function pedirAssinatura(plano){
+  const erro = document.getElementById('planos-erro');
+  if(erro){ erro.style.display='none'; }
+  let btn = null, txt = '';
+  try { btn = window.event && window.event.target ? window.event.target.closest('button') : null; if(btn){ txt = btn.textContent; } } catch(e){}
+  const { data:{ session } } = await supabase.auth.getSession();
+  if(!session){ if(erro){ erro.textContent='Sua sessão expirou. Entre novamente.'; erro.style.display='block'; } return; }
+  if(btn){ btn.disabled=true; btn.textContent='Gerando assinatura…'; }
+  try {
+    const resp = await fetch('/api/criar-assinatura', {
+      method:'POST', headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ access_token: session.access_token, plano })
+    });
+    const out = await resp.json().catch(()=>({}));
+    if(resp.status === 503 || out.error === 'config'){
+      if(erro){ erro.textContent='Pagamentos em configuração — disponível em breve. 🐾'; erro.style.display='block'; }
+      return;
+    }
+    const url = out.init_point || out.sandbox_init_point;
+    if(!resp.ok || !url){
+      if(erro){ erro.textContent = out.message || 'Não foi possível iniciar a assinatura. Tente de novo.'; erro.style.display='block'; }
+      return;
+    }
+    window.location.href = url; // redireciona ao checkout de assinatura do Mercado Pago
+  } catch(e){
+    if(erro){ erro.textContent='Erro de conexão. Tente novamente.'; erro.style.display='block'; }
+  } finally {
+    if(btn){ btn.disabled=false; btn.textContent=txt; }
   }
 }
 

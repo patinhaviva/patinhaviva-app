@@ -17,13 +17,48 @@ module.exports = async (req, res) => {
   try {
     const q = req.query || {};
     const body = req.body || {};
-    // O MP envia o id do pagamento por query (?type=payment&data.id=) ou no corpo.
     const tipo = q.type || q.topic || body.type || (body.action ? String(body.action).split('.')[0] : null);
-    const paymentId = q['data.id'] || (q.data && q.data.id) || (body.data && body.data.id) || q.id;
+    const resourceId = q['data.id'] || (q.data && q.data.id) || (body.data && body.data.id) || q.id;
+    const tstr = String(tipo || '');
+    if (!resourceId) { res.status(200).json({ ok: true, note: 'sem id' }); return; }
 
-    // Só tratamos eventos de pagamento.
-    if (tipo && String(tipo).indexOf('payment') === -1) { res.status(200).json({ ok: true, ignored: tipo }); return; }
-    if (!paymentId) { res.status(200).json({ ok: true, note: 'sem payment id' }); return; }
+    const svc = (path, payload) => fetch(`${SB_URL}/rest/v1/${path}`, {
+      method: 'PATCH',
+      headers: { apikey: SB_SERVICE, Authorization: `Bearer ${SB_SERVICE}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify(payload)
+    });
+
+    // === ASSINATURA (preapproval) ===
+    if (/preapproval/i.test(tstr) && !/payment/i.test(tstr)) {
+      const r = await fetch(`https://api.mercadopago.com/preapproval/${resourceId}`, {
+        headers: { Authorization: `Bearer ${MP_TOKEN}` }
+      });
+      if (!r.ok) { res.status(200).json({ ok: true, note: 'preapproval nao encontrada' }); return; }
+      const pre = await r.json();
+      const ext = pre.external_reference; // tutorId|plano|assinaturaId
+      if (!ext) { res.status(200).json({ ok: true, note: 'sem external_reference' }); return; }
+      const [tutorId, plano, assinaturaId] = String(ext).split('|');
+
+      let aStatus = null, novoPlano = null;
+      if (pre.status === 'authorized')      { aStatus = 'ativa';     novoPlano = plano; }
+      else if (pre.status === 'cancelled')  { aStatus = 'cancelada'; novoPlano = 'livre'; }
+      else if (pre.status === 'paused')     { aStatus = 'pausada'; }
+
+      if (aStatus && assinaturaId) {
+        await svc(`assinaturas?id=eq.${assinaturaId}`, {
+          status: aStatus, mp_preapproval_id: String(pre.id), atualizado_em: new Date().toISOString()
+        });
+      }
+      if (novoPlano && tutorId && ['livre','premium','duo','familia'].indexOf(novoPlano) !== -1) {
+        await svc(`profiles?id=eq.${tutorId}`, { plano: novoPlano, atualizado_em: new Date().toISOString() });
+      }
+      res.status(200).json({ ok: true, kind: 'preapproval' });
+      return;
+    }
+
+    // === PAGAMENTO AVULSO (plaquinha) ===
+    if (tipo && tstr.indexOf('payment') === -1) { res.status(200).json({ ok: true, ignored: tipo }); return; }
+    const paymentId = resourceId;
 
     // 1) Busca o pagamento no MP (fonte da verdade).
     const payResp = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
