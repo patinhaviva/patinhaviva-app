@@ -346,6 +346,77 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
 </div>
 
 <!-- ══════════════════════════════════════════════════════
+     TELA: ASSINAR EM 1 PASSO (foco em conversão — vinda da landing com ?plano=)
+══════════════════════════════════════════════════════ -->
+<div id="screen-subscribe" style="display:none;align-items:center;justify-content:center;min-height:100vh;padding:24px;background:linear-gradient(135deg,#FAF0F8 0%,#F0EAF8 50%,#EAF5F8 100%)">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <img class="auth-logo-icon" src="icon-192.png" alt="Patinha Viva" style="border-radius:12px"/>
+      <div class="auth-logo-name">Patinha <span>Viva</span></div>
+    </div>
+
+    <!-- Resumo do plano escolhido -->
+    <div style="background:linear-gradient(135deg,rgba(240,40,74,.06),rgba(124,47,214,.06));border:1px solid rgba(124,47,214,.15);border-radius:16px;padding:16px 18px;margin-bottom:20px;text-align:center">
+      <div style="font-size:.72rem;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">Você escolheu</div>
+      <div id="sub-plano-nome" style="font-family:'Lora',serif;font-size:1.3rem;font-weight:700;color:var(--ink)">Plano Premium</div>
+      <div id="sub-plano-preco" style="font-size:1.05rem;font-weight:600;color:var(--violet);margin-top:2px">R$ 29,90/mês</div>
+      <div style="font-size:.76rem;color:var(--ink-soft);margin-top:4px">Cobrança mensal · cancele quando quiser</div>
+    </div>
+
+    <div id="sub-erro" style="display:none;background:rgba(240,40,74,.1);border:1px solid rgba(240,40,74,.2);color:#C0002A;padding:10px 14px;border-radius:10px;font-size:.85rem;margin-bottom:12px"></div>
+
+    <!-- MODO: criar conta (novo cliente) -->
+    <div id="sub-register">
+      <h2 style="font-family:'Lora',serif;font-size:1.25rem;font-weight:700;color:var(--ink);text-align:center;margin-bottom:4px">Crie sua conta para assinar</h2>
+      <p style="font-size:.85rem;color:var(--ink-soft);text-align:center;margin-bottom:18px">Leva menos de um minuto 🐾</p>
+      <!-- (Fase 2) Botão "Entrar com Google" entra aqui -->
+      <div class="auth-form">
+        <div class="form-group">
+          <label class="form-label">E-mail</label>
+          <input id="sub-reg-email" class="form-input" type="email" placeholder="seu@email.com.br" autocomplete="email"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirme seu e-mail</label>
+          <input id="sub-reg-email2" class="form-input" type="email" placeholder="repita seu e-mail" autocomplete="off" onpaste="return false" ondrop="return false"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Senha</label>
+          <input id="sub-reg-senha" class="form-input" type="password" placeholder="Mín. 6 caracteres" autocomplete="new-password"/>
+          <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:.8rem;color:var(--ink-soft);cursor:pointer;user-select:none">
+            <input type="checkbox" onclick="toggleSubSenha(this,'sub-reg-senha')"/> Mostrar senha
+          </label>
+        </div>
+        <button class="btn-auth" onclick="subscribeRegister()">Criar conta e assinar →</button>
+        <div class="auth-footer" style="margin-top:12px">Ao continuar você aceita nossos <a href="#" onclick="openModal('modal-termos');return false">Termos de Uso</a> e <a href="#" onclick="openModal('modal-privacidade');return false">Política de Privacidade</a></div>
+        <div class="auth-footer" style="margin-top:8px">Já é cliente? <a href="#" onclick="subscribeSwitchMode('login');return false">Entrar</a></div>
+      </div>
+    </div>
+
+    <!-- MODO: já é cliente (login) -->
+    <div id="sub-login" style="display:none">
+      <h2 style="font-family:'Lora',serif;font-size:1.25rem;font-weight:700;color:var(--ink);text-align:center;margin-bottom:4px">Entre para assinar</h2>
+      <p style="font-size:.85rem;color:var(--ink-soft);text-align:center;margin-bottom:18px">Bem-vindo de volta! 🐾</p>
+      <!-- (Fase 2) Botão "Entrar com Google" entra aqui -->
+      <div class="auth-form">
+        <div class="form-group">
+          <label class="form-label">E-mail</label>
+          <input id="sub-log-email" class="form-input" type="email" placeholder="seu@email.com.br" autocomplete="email"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Senha</label>
+          <input id="sub-log-senha" class="form-input" type="password" placeholder="••••••••" autocomplete="current-password"/>
+          <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:.8rem;color:var(--ink-soft);cursor:pointer;user-select:none">
+            <input type="checkbox" onclick="toggleSubSenha(this,'sub-log-senha')"/> Mostrar senha
+          </label>
+        </div>
+        <button class="btn-auth" onclick="subscribeLogin()">Entrar e assinar →</button>
+        <div class="auth-footer" style="margin-top:12px">Novo por aqui? <a href="#" onclick="subscribeSwitchMode('register');return false">Criar conta</a></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
      TELA: REDEFINIR SENHA (acionada pelo link de recuperação do e-mail)
 ══════════════════════════════════════════════════════ -->
 <div id="screen-reset" style="display:none;align-items:center;justify-content:center;min-height:100vh;padding:24px;background:linear-gradient(135deg,#FAF0F8 0%,#F0EAF8 50%,#EAF5F8 100%)">
@@ -1366,6 +1437,122 @@ async function registerUser() {
   }
 }
 
+// ───────── FLUXO DE ASSINATURA EM 1 PASSO (vinda da landing com ?plano=) ─────────
+// Mostra uma tela enxuta focada em vender: plano + preço + cadastro/login → checkout.
+window.__subscribePlano = null;
+
+function showSubscribeScreen(plano){
+  window.__subscribePlano = plano;
+  const info = (typeof PLANOS !== 'undefined' && PLANOS[plano]) ? PLANOS[plano] : { nome:'Plano Premium', preco:'R$ 29,90/mês' };
+  const n = document.getElementById('sub-plano-nome'); if(n) n.textContent = info.nome;
+  const p = document.getElementById('sub-plano-preco'); if(p) p.textContent = info.preco;
+  subscribeSwitchMode('register');
+  const auth = document.getElementById('screen-auth'); if(auth) auth.style.display = 'none';
+  const scr = document.getElementById('screen-subscribe'); if(scr) scr.style.display = 'flex';
+}
+
+function subscribeSwitchMode(mode){
+  const reg = document.getElementById('sub-register'); if(reg) reg.style.display = (mode==='register')?'block':'none';
+  const log = document.getElementById('sub-login');    if(log) log.style.display = (mode==='login')?'block':'none';
+  const e = document.getElementById('sub-erro'); if(e) e.style.display='none';
+}
+
+function toggleSubSenha(cb, id){
+  const inp = document.getElementById(id); if(inp) inp.type = cb.checked ? 'text' : 'password';
+}
+
+function subErro(msg){
+  const e = document.getElementById('sub-erro');
+  if(e){ e.textContent = msg; e.style.display = 'block'; }
+}
+
+async function subscribeRegister(){
+  const email  = (document.getElementById('sub-reg-email').value||'').trim().toLowerCase();
+  const email2 = (document.getElementById('sub-reg-email2').value||'').trim().toLowerCase();
+  const pass   = document.getElementById('sub-reg-senha').value||'';
+  const btn    = document.querySelector('#sub-register .btn-auth');
+  if(!email || !pass){ subErro('Preencha e-mail e senha.'); return; }
+  if(email !== email2){ subErro('Os e-mails não conferem. Confira e digite novamente.'); return; }
+  if(pass.length < 6){ subErro('A senha precisa ter pelo menos 6 caracteres.'); return; }
+  if(btn && !btn.dataset.label) btn.dataset.label = btn.textContent;
+  if(btn) showLoading(btn, true);
+  try {
+    // Cria a conta JÁ CONFIRMADA + a assinatura no servidor (a confirmação de
+    // e-mail dos cadastros GRATUITOS continua ligada; aqui o cartão + a dupla
+    // digitação do e-mail fazem a validação).
+    const resp = await fetch('/api/criar-conta-e-assinar', {
+      method:'POST', headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ email, password: pass, plano: window.__subscribePlano })
+    });
+    const out = await resp.json().catch(()=>({}));
+    if(resp.status === 503 || out.error === 'config'){ if(btn) showLoading(btn,false); subErro('Pagamentos em configuração — disponível em breve. 🐾'); return; }
+    if(resp.status === 409 || out.error === 'existe'){
+      if(btn) showLoading(btn,false);
+      // Troca para o modo login PRIMEIRO (subscribeSwitchMode limpa o erro),
+      // depois exibe a mensagem — senão ela some no mesmo instante.
+      subscribeSwitchMode('login');
+      const le = document.getElementById('sub-log-email'); if(le) le.value = email;
+      subErro('Esse e-mail já tem conta. Use "Entrar" para assinar.');
+      return;
+    }
+    const url = out.init_point || out.sandbox_init_point;
+    if(!resp.ok || !url){ if(btn) showLoading(btn,false); subErro(out.message || 'Não foi possível concluir. Tente de novo.'); return; }
+    // Conta já existe e está confirmada → loga (best-effort) para ter sessão ao voltar do checkout.
+    try { await supabase.auth.signInWithPassword({ email, password: pass }); } catch(e){}
+    if(btn){ btn.textContent = 'Indo para o pagamento…'; }
+    window.location.href = url; // → checkout de assinatura do Mercado Pago
+  } catch(e){
+    if(btn) showLoading(btn, false);
+    subErro('Erro de conexão. Tente novamente.');
+  }
+}
+
+async function subscribeLogin(){
+  const email = (document.getElementById('sub-log-email').value||'').trim();
+  const pass  = document.getElementById('sub-log-senha').value||'';
+  const btn   = document.querySelector('#sub-login .btn-auth');
+  if(!email || !pass){ subErro('Preencha e-mail e senha.'); return; }
+  if(btn && !btn.dataset.label) btn.dataset.label = btn.textContent;
+  if(btn) showLoading(btn, true);
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+    if(error){
+      if(btn) showLoading(btn, false);
+      if((error.message||'').includes('Invalid login')) subErro('E-mail ou senha incorretos.');
+      else if((error.message||'').includes('Email not confirmed')) subErro('Confirme seu e-mail antes de entrar.');
+      else subErro('Erro: ' + error.message);
+      return;
+    }
+    await subscribeCheckout(window.__subscribePlano, btn);
+  } catch(e){
+    if(btn) showLoading(btn, false);
+    subErro('Erro de conexão. Tente novamente.');
+  }
+}
+
+// Cria a assinatura no servidor e redireciona ao checkout do Mercado Pago.
+// Mostra eventuais erros na própria tela enxuta (não no modal de planos).
+async function subscribeCheckout(plano, btn){
+  if(['premium','duo','familia'].indexOf(plano) === -1){ subErro('Plano inválido.'); if(btn) showLoading(btn,false); return; }
+  try {
+    const { data:{ session } } = await supabase.auth.getSession();
+    if(!session){ subErro('Sua sessão expirou. Tente novamente.'); if(btn) showLoading(btn,false); return; }
+    if(btn){ btn.disabled = true; btn.style.opacity = '0.7'; btn.textContent = 'Indo para o pagamento…'; }
+    const resp = await fetch('/api/criar-assinatura', {
+      method:'POST', headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ access_token: session.access_token, plano })
+    });
+    const out = await resp.json().catch(()=>({}));
+    if(resp.status === 503 || out.error === 'config'){ subErro('Pagamentos em configuração — disponível em breve. 🐾'); if(btn) showLoading(btn,false); return; }
+    const url = out.init_point || out.sandbox_init_point;
+    if(!resp.ok || !url){ subErro(out.message || 'Não foi possível iniciar a assinatura. Tente de novo.'); if(btn) showLoading(btn,false); return; }
+    window.location.href = url; // → checkout de assinatura do Mercado Pago
+  } catch(e){
+    subErro('Erro de conexão. Tente novamente.');
+    if(btn) showLoading(btn,false);
+  }
+}
+
 // ── CONFIG DA TABELA saude (ajuste aqui se os nomes das colunas diferirem) ──
 const SAUDE_COLS = {
   pet: 'pet_id', tutor: 'tutor_id', tipo: 'tipo', descricao: 'descricao',
@@ -2295,7 +2482,16 @@ window.addEventListener('load', async () => {
   const { data: { session } } = await supabase.auth.getSession();
   if(session) {
     await initApp(session.user);
+    return;
   }
+  // Visitante NÃO logado vindo da landing com um plano escolhido (?plano=) →
+  // mostra a tela enxuta de assinatura (criar conta/entrar → checkout direto).
+  try {
+    const planoParam = (new URLSearchParams(window.location.search).get('plano')||'').toLowerCase();
+    if(['premium','duo','familia'].indexOf(planoParam) !== -1){
+      showSubscribeScreen(planoParam);
+    }
+  } catch(e){}
 });
 
 // ── NAVEGAÇÃO ─────────────────────────────────────────────
