@@ -369,7 +369,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
     <div id="sub-register">
       <h2 style="font-family:'Lora',serif;font-size:1.25rem;font-weight:700;color:var(--ink);text-align:center;margin-bottom:4px">Crie sua conta para assinar</h2>
       <p style="font-size:.85rem;color:var(--ink-soft);text-align:center;margin-bottom:18px">Leva menos de um minuto 🐾</p>
-      <!-- (Fase 2) Botão "Entrar com Google" entra aqui -->
+      <button type="button" onclick="subscribeGoogle()" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;border:1px solid #dadce0;border-radius:12px;padding:12px;font-family:'DM Sans',sans-serif;font-size:.95rem;font-weight:600;color:#3c4043;cursor:pointer;margin-bottom:14px">
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="#EA4335" d="M12 5.04c1.97 0 3.32.85 4.08 1.56l2.98-2.9C17.24 1.99 14.85 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.47 2.69C6.51 7.31 9.02 5.04 12 5.04z"/><path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58l3.73 2.84c2.18-2.01 3.69-4.97 3.69-8.66z"/><path fill="#FBBC05" d="M5.65 14.41c-.25-.74-.39-1.53-.39-2.41s.14-1.67.39-2.41L2.18 6.9C1.43 8.41 1 10.15 1 12s.43 3.59 1.18 5.1l3.47-2.69z"/><path fill="#34A853" d="M12 23c2.85 0 5.24-.94 6.99-2.56l-3.73-2.84c-.98.66-2.23 1.06-3.26 1.06-2.98 0-5.49-2.27-6.35-5.31L2.18 17.1C3.99 20.7 7.7 23 12 23z"/></svg>
+        Continuar com Google
+      </button>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;color:var(--ink-soft);font-size:.8rem"><span style="flex:1;height:1px;background:rgba(0,0,0,.1)"></span>ou<span style="flex:1;height:1px;background:rgba(0,0,0,.1)"></span></div>
       <div class="auth-form">
         <div class="form-group">
           <label class="form-label">E-mail</label>
@@ -396,7 +400,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
     <div id="sub-login" style="display:none">
       <h2 style="font-family:'Lora',serif;font-size:1.25rem;font-weight:700;color:var(--ink);text-align:center;margin-bottom:4px">Entre para assinar</h2>
       <p style="font-size:.85rem;color:var(--ink-soft);text-align:center;margin-bottom:18px">Bem-vindo de volta! 🐾</p>
-      <!-- (Fase 2) Botão "Entrar com Google" entra aqui -->
+      <button type="button" onclick="subscribeGoogle()" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;border:1px solid #dadce0;border-radius:12px;padding:12px;font-family:'DM Sans',sans-serif;font-size:.95rem;font-weight:600;color:#3c4043;cursor:pointer;margin-bottom:14px">
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="#EA4335" d="M12 5.04c1.97 0 3.32.85 4.08 1.56l2.98-2.9C17.24 1.99 14.85 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.47 2.69C6.51 7.31 9.02 5.04 12 5.04z"/><path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58l3.73 2.84c2.18-2.01 3.69-4.97 3.69-8.66z"/><path fill="#FBBC05" d="M5.65 14.41c-.25-.74-.39-1.53-.39-2.41s.14-1.67.39-2.41L2.18 6.9C1.43 8.41 1 10.15 1 12s.43 3.59 1.18 5.1l3.47-2.69z"/><path fill="#34A853" d="M12 23c2.85 0 5.24-.94 6.99-2.56l-3.73-2.84c-.98.66-2.23 1.06-3.26 1.06-2.98 0-5.49-2.27-6.35-5.31L2.18 17.1C3.99 20.7 7.7 23 12 23z"/></svg>
+        Continuar com Google
+      </button>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;color:var(--ink-soft);font-size:.8rem"><span style="flex:1;height:1px;background:rgba(0,0,0,.1)"></span>ou<span style="flex:1;height:1px;background:rgba(0,0,0,.1)"></span></div>
       <div class="auth-form">
         <div class="form-group">
           <label class="form-label">E-mail</label>
@@ -1553,6 +1561,26 @@ async function subscribeCheckout(plano, btn){
   }
 }
 
+// Login com Google na tela de assinatura (Fase 2 — maior conversão).
+// Preserva o plano escolhido no redirectTo (?plano=X&assinar=1); ao voltar
+// logado, o initApp detecta ?assinar=1 e dispara o checkout automaticamente.
+// Requer o provider Google habilitado no Supabase (Authentication → Providers)
+// e a URL de retorno liberada em URL Configuration. Sem isso, degrada honesto.
+async function subscribeGoogle(){
+  const plano = window.__subscribePlano || 'premium';
+  try {
+    const redirectTo = `${window.location.origin}/?plano=${encodeURIComponent(plano)}&assinar=1`;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo }
+    });
+    if(error){ subErro('Login com Google indisponível no momento. Use e-mail e senha. 🐾'); }
+    // sucesso → o navegador é redirecionado ao Google automaticamente
+  } catch(e){
+    subErro('Não foi possível iniciar o login com Google. Tente por e-mail.');
+  }
+}
+
 // ── CONFIG DA TABELA saude (ajuste aqui se os nomes das colunas diferirem) ──
 const SAUDE_COLS = {
   pet: 'pet_id', tutor: 'tutor_id', tipo: 'tipo', descricao: 'descricao',
@@ -1615,11 +1643,15 @@ async function initApp(user) {
     const sp = new URLSearchParams(window.location.search);
     const planoParam = (sp.get('plano') || '').toLowerCase();
     const assinatura = sp.get('assinatura');
+    const assinarIntent = sp.get('assinar') === '1'; // retorno do "Continuar com Google" da tela de assinatura
     if(assinatura === 'sucesso'){
       setTimeout(() => alert('Pagamento da assinatura recebido! 🐾\nSeu plano será ativado em instantes. Se ainda não aparecer, atualize a página em alguns segundos.'), 300);
     }
     if(['premium','duo','familia'].indexOf(planoParam) !== -1){
       navigate('plano'); openModal('modal-planos');
+      // Veio do login com Google na tela de assinatura → já dispara o checkout
+      // (o modal-planos fica aberto por baixo p/ exibir erro e permitir nova tentativa).
+      if(assinarIntent){ setTimeout(() => pedirAssinatura(planoParam), 250); }
     }
     if(planoParam || assinatura){ history.replaceState(null, '', window.location.pathname); }
   } catch(e){}
