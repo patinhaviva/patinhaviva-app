@@ -1488,9 +1488,11 @@ async function subscribeRegister(){
     if(resp.status === 503 || out.error === 'config'){ if(btn) showLoading(btn,false); subErro('Pagamentos em configuração — disponível em breve. 🐾'); return; }
     if(resp.status === 409 || out.error === 'existe'){
       if(btn) showLoading(btn,false);
-      subErro('Esse e-mail já tem conta. Use "Entrar" para assinar.');
+      // Troca para o modo login PRIMEIRO (subscribeSwitchMode limpa o erro),
+      // depois exibe a mensagem — senão ela some no mesmo instante.
       subscribeSwitchMode('login');
       const le = document.getElementById('sub-log-email'); if(le) le.value = email;
+      subErro('Esse e-mail já tem conta. Use "Entrar" para assinar.');
       return;
     }
     const url = out.init_point || out.sandbox_init_point;
