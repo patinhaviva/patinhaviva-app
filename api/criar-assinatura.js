@@ -88,7 +88,7 @@ module.exports = async (req, res) => {
     });
     const pre = await mpResp.json();
     if (!mpResp.ok || !(pre.init_point || pre.sandbox_init_point)) {
-      res.status(502).json({ error: 'mp', message: 'Falha ao criar a assinatura.', detail: pre, _dbg: { v: 'start_date-fix-2', sent_start_date: preBody.auto_recurring.start_date } });
+      res.status(502).json({ error: 'mp', message: 'Falha ao criar a assinatura.', detail: pre });
       return;
     }
 
