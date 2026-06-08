@@ -376,6 +376,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
           <input id="sub-reg-email" class="form-input" type="email" placeholder="seu@email.com.br" autocomplete="email"/>
         </div>
         <div class="form-group">
+          <label class="form-label">Confirme seu e-mail</label>
+          <input id="sub-reg-email2" class="form-input" type="email" placeholder="repita seu e-mail" autocomplete="off" onpaste="return false" ondrop="return false"/>
+        </div>
+        <div class="form-group">
           <label class="form-label">Senha</label>
           <input id="sub-reg-senha" class="form-input" type="password" placeholder="Mín. 6 caracteres" autocomplete="new-password"/>
           <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:.8rem;color:var(--ink-soft);cursor:pointer;user-select:none">
@@ -1463,41 +1467,38 @@ function subErro(msg){
 }
 
 async function subscribeRegister(){
-  const email = (document.getElementById('sub-reg-email').value||'').trim();
-  const pass  = document.getElementById('sub-reg-senha').value||'';
-  const btn   = document.querySelector('#sub-register .btn-auth');
+  const email  = (document.getElementById('sub-reg-email').value||'').trim().toLowerCase();
+  const email2 = (document.getElementById('sub-reg-email2').value||'').trim().toLowerCase();
+  const pass   = document.getElementById('sub-reg-senha').value||'';
+  const btn    = document.querySelector('#sub-register .btn-auth');
   if(!email || !pass){ subErro('Preencha e-mail e senha.'); return; }
+  if(email !== email2){ subErro('Os e-mails não conferem. Confira e digite novamente.'); return; }
   if(pass.length < 6){ subErro('A senha precisa ter pelo menos 6 caracteres.'); return; }
   if(btn && !btn.dataset.label) btn.dataset.label = btn.textContent;
   if(btn) showLoading(btn, true);
   try {
-    const { data, error } = await supabase.auth.signUp({ email, password: pass });
-    if(error){
-      if(btn) showLoading(btn, false);
-      if((error.message||'').toLowerCase().includes('already registered')){
-        subErro('Esse e-mail já tem conta. Use "Entrar" para assinar.');
-        subscribeSwitchMode('login');
-        const le = document.getElementById('sub-log-email'); if(le) le.value = email;
-      } else {
-        subErro('Não foi possível criar a conta: ' + error.message);
-      }
+    // Cria a conta JÁ CONFIRMADA + a assinatura no servidor (a confirmação de
+    // e-mail dos cadastros GRATUITOS continua ligada; aqui o cartão + a dupla
+    // digitação do e-mail fazem a validação).
+    const resp = await fetch('/api/criar-conta-e-assinar', {
+      method:'POST', headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ email, password: pass, plano: window.__subscribePlano })
+    });
+    const out = await resp.json().catch(()=>({}));
+    if(resp.status === 503 || out.error === 'config'){ if(btn) showLoading(btn,false); subErro('Pagamentos em configuração — disponível em breve. 🐾'); return; }
+    if(resp.status === 409 || out.error === 'existe'){
+      if(btn) showLoading(btn,false);
+      subErro('Esse e-mail já tem conta. Use "Entrar" para assinar.');
+      subscribeSwitchMode('login');
+      const le = document.getElementById('sub-log-email'); if(le) le.value = email;
       return;
     }
-    if(data.session){
-      // Confirmação de e-mail desligada → segue direto pro checkout (fluxo de 1 passo).
-      await subscribeCheckout(window.__subscribePlano, btn);
-    } else {
-      if(btn) showLoading(btn, false);
-      // identities vazio = e-mail já cadastrado (proteção anti-enumeração do Supabase)
-      if(data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0){
-        subErro('Esse e-mail já tem conta. Use "Entrar" para assinar.');
-        subscribeSwitchMode('login');
-        const le = document.getElementById('sub-log-email'); if(le) le.value = email;
-      } else {
-        // Confirmação de e-mail ligada → precisa confirmar antes de assinar.
-        subErro('✅ Conta criada! Confirme seu e-mail (enviamos um link) e depois volte a esta página para concluir a assinatura.');
-      }
-    }
+    const url = out.init_point || out.sandbox_init_point;
+    if(!resp.ok || !url){ if(btn) showLoading(btn,false); subErro(out.message || 'Não foi possível concluir. Tente de novo.'); return; }
+    // Conta já existe e está confirmada → loga (best-effort) para ter sessão ao voltar do checkout.
+    try { await supabase.auth.signInWithPassword({ email, password: pass }); } catch(e){}
+    if(btn){ btn.textContent = 'Indo para o pagamento…'; }
+    window.location.href = url; // → checkout de assinatura do Mercado Pago
   } catch(e){
     if(btn) showLoading(btn, false);
     subErro('Erro de conexão. Tente novamente.');
