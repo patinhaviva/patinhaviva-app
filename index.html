@@ -500,6 +500,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
         <button class="nav-item" onclick="navigate('plano')">
           <span class="nav-icon">⭐</span> Meu Plano
         </button>
+        <button class="nav-item" onclick="navigate('familia')">
+          <span class="nav-icon">👨‍👩‍👧</span> Minha Família
+        </button>
         <button class="nav-item" onclick="navigate('admin')">
           <span class="nav-icon">🛡</span> Admin
         </button>
@@ -751,6 +754,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
           </div>
           <div id="plano-preco" style="font-family:'Lora',serif;font-size:2.4rem;font-weight:700;color:var(--ink);margin-bottom:4px">Gratuito</div>
           <div id="plano-cobranca" style="font-size:.8rem;color:var(--ink-soft);margin-bottom:20px">Pagamentos em configuração</div>
+          <div id="plano-familia-nota" style="display:none;background:rgba(124,47,214,.08);border-radius:12px;padding:12px 14px;font-size:.82rem;color:var(--ink-mid);line-height:1.5;margin-bottom:16px"></div>
           <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
             <div style="display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--ink-mid)"><span style="color:var(--teal)">✓</span> Perfis de pets</div>
             <div style="display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--ink-mid)"><span style="color:var(--teal)">✓</span> Fotos e vídeos</div>
@@ -779,6 +783,16 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
           <button class="btn btn-primary" style="width:100%" onclick="openModal('modal-plaquinha')">Pedir plaquinha</button>
         </div>
       </div>
+    </div>
+
+    <!-- MINHA FAMÍLIA (multi-tutor) -->
+    <div class="page" id="page-familia">
+      <div class="page-header">
+        <div class="page-title">Minha Família 👨‍👩‍👧</div>
+        <div class="page-subtitle">Compartilhe os pets, memórias e saúde com um co-tutor</div>
+      </div>
+      <div id="familia-loading" style="color:var(--ink-soft);font-size:.9rem">Carregando…</div>
+      <div id="familia-conteudo" style="display:none"></div>
     </div>
 
     <!-- ADMIN -->
@@ -1231,10 +1245,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
           <div>✓ Fotos e vídeos ilimitados</div>
           <div>✓ Memorial permanente</div>
           <div>✓ PetVault Saúde completo</div>
+          <div>✓ Até 2 tutores na conta</div>
+          <div>✓ Álbum compartilhado entre tutores</div>
           <div>✓ Comunidade</div>
           <div>✓ Plaquinha QR (sob pedido)</div>
           <div style="color:var(--ink-soft)">⏳ Testamento Pet (em breve)</div>
-          <div style="color:var(--ink-soft)">⏳ Até 2 tutores (em breve)</div>
         </div>
         <button class="btn btn-secondary" style="width:100%" onclick="pedirAssinatura('premium')">Assinar Premium</button>
       </div>
@@ -1248,10 +1263,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
           <div>✓ Fotos e vídeos ilimitados</div>
           <div>✓ Memorial permanente</div>
           <div>✓ PetVault Saúde completo</div>
+          <div>✓ Até 2 tutores na conta</div>
+          <div>✓ Álbum compartilhado entre tutores</div>
           <div>✓ Comunidade</div>
           <div>✓ Plaquinhas QR (sob pedido)</div>
           <div style="color:var(--ink-soft)">⏳ Testamentos Pet (em breve)</div>
-          <div style="color:var(--ink-soft)">⏳ Até 2 tutores (em breve)</div>
         </div>
         <button class="btn btn-primary" style="width:100%" onclick="pedirAssinatura('duo')">Assinar Duo</button>
       </div>
@@ -1264,10 +1280,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
           <div>✓ Fotos e vídeos ilimitados</div>
           <div>✓ Memorial permanente</div>
           <div>✓ PetVault Saúde completo</div>
+          <div>✓ Até 2 tutores na conta</div>
+          <div>✓ Álbum compartilhado entre tutores</div>
+          <div>✓ Comunidade</div>
           <div>✓ Plaquinhas QR (sob pedido)</div>
           <div style="color:var(--ink-soft)">⏳ Testamentos Pet (em breve)</div>
-          <div style="color:var(--ink-soft)">⏳ Até 4 tutores (em breve)</div>
-          <div style="color:var(--ink-soft)">⏳ Álbum compartilhado (em breve)</div>
         </div>
         <button class="btn btn-secondary" style="width:100%" onclick="pedirAssinatura('familia')">Assinar Família</button>
       </div>
@@ -1609,9 +1626,9 @@ async function initApp(user) {
   if(profileError) console.warn('Perfil não encontrado, usando dados do auth:', profileError.message);
   currentProfile = profile;
 
-  // Buscar pets
+  // Buscar pets (a RLS devolve os pets de toda a família — multi-tutor)
   const { data: pets } = await supabase
-    .from('pets').select('*').eq('tutor_id', user.id).eq('ativo', true);
+    .from('pets').select('*').eq('ativo', true);
   userPets = pets || [];
   currentPetId = userPets[0]?.id || null;
 
@@ -1655,6 +1672,13 @@ async function initApp(user) {
     }
     if(planoParam || assinatura){ history.replaceState(null, '', window.location.pathname); }
   } catch(e){}
+
+  // Multi-tutor: badge de co-tutor + convite pendente guardado no boot (?convite=)
+  await aplicarBadgeFamilia();
+  try {
+    const pend = sessionStorage.getItem('pv_convite');
+    if(pend){ sessionStorage.removeItem('pv_convite'); await aceitarConviteFamilia(pend); }
+  } catch(e){}
 }
 
 function renderPlano(profile){
@@ -1666,6 +1690,179 @@ function renderPlano(profile){
   if(nomeEl) nomeEl.textContent = info.nome;
   if(precoEl) precoEl.textContent = info.preco;
   if(cobEl) cobEl.textContent = (plano === 'livre') ? 'Plano gratuito' : 'Cobrança mensal · cancele quando quiser';
+}
+
+// ── MULTI-TUTOR (Minha Família) ───────────────────────────
+let familiaInfo = null;
+
+function escapeHtmlFam(s){ return (s==null?'':String(s)).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function carregarFamiliaInfo(){
+  const { data, error } = await supabase.rpc('pv_minha_familia_info');
+  if(error){ console.warn('familia info:', error.message); return null; }
+  familiaInfo = data;
+  return data;
+}
+
+// Atualiza o aviso de co-tutor no card "Meu Plano" + o rótulo na sidebar.
+async function aplicarBadgeFamilia(){
+  const info = await carregarFamiliaInfo();
+  const nota = document.getElementById('plano-familia-nota');
+  if(info && info.papel === 'membro'){
+    if(nota){
+      nota.style.display = 'block';
+      nota.innerHTML = '👨‍👩‍👧 Você é <b>co-tutor</b> da família de <b>' + escapeHtmlFam(info.dono_nome) + '</b> — acesso completo aos pets, memórias e saúde da família. A assinatura é gerenciada pelo titular.';
+    }
+    document.querySelectorAll('.user-plan').forEach(el => el.textContent = 'Co-tutor');
+  } else if(nota){
+    nota.style.display = 'none';
+  }
+}
+
+async function renderFamilia(){
+  const loading = document.getElementById('familia-loading');
+  const box = document.getElementById('familia-conteudo');
+  if(loading) loading.style.display = 'block';
+  if(box) box.style.display = 'none';
+  const info = await carregarFamiliaInfo();
+  if(loading) loading.style.display = 'none';
+  if(box) box.style.display = 'block';
+  if(!box) return;
+  if(!info){
+    box.innerHTML = '<div class="card">Não foi possível carregar. Se o recurso acabou de ser habilitado no banco, recarregue a página e tente novamente.</div>';
+    return;
+  }
+
+  // Co-tutor (membro de outra família)
+  if(info.papel === 'membro'){
+    box.innerHTML =
+      '<div class="card">'
+      + '<div class="card-title">👨‍👩‍👧 Você é co-tutor</div>'
+      + '<p style="font-size:.9rem;color:var(--ink-mid);line-height:1.7;margin:8px 0 16px">Você faz parte da família de <b>' + escapeHtmlFam(info.dono_nome) + '</b>. Tem acesso completo aos pets, memórias e registros de saúde da família. A assinatura e os convites são gerenciados pelo titular.</p>'
+      + '<button class="btn btn-secondary btn-sm" onclick="sairOuRemoverFamilia(\'' + info.vinculo_id + '\', true)">Sair da família</button>'
+      + '</div>';
+    return;
+  }
+
+  // Titular / solo
+  const podeConvidar = (info.limite || 1) >= 2;
+  const membros = info.membros || [];
+  const temMembro = membros.length > 0;
+  const vagaLivre = membros.length < ((info.limite || 1) - 1);
+  let html = '';
+
+  if(!podeConvidar){
+    html +=
+      '<div class="card" style="margin-bottom:16px">'
+      + '<div class="card-title">👨‍👩‍👧 Co-tutor da família</div>'
+      + '<p style="font-size:.9rem;color:var(--ink-mid);line-height:1.7;margin:8px 0 16px">Seu plano atual não inclui co-tutores. Assine <b>Premium</b>, <b>Duo</b> ou <b>Família</b> para compartilhar os pets com outra pessoa (até 2 tutores na conta).</p>'
+      + '<button class="btn btn-primary btn-sm" onclick="navigate(\'plano\'); openModal(\'modal-planos\')">Ver planos</button>'
+      + '</div>';
+  } else {
+    html += '<div class="card" style="margin-bottom:16px">';
+    html += '<div class="card-title">👨‍👩‍👧 Co-tutor da família</div>';
+    html += '<p style="font-size:.85rem;color:var(--ink-soft);margin:6px 0 14px">Seu plano permite até <b>' + info.limite + ' tutores</b> na conta (você + ' + (info.limite - 1) + ').</p>';
+
+    membros.forEach(m => {
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--bg);border-radius:12px;padding:12px 14px;margin-bottom:10px">'
+        + '<div><div style="font-size:.9rem;color:var(--ink);font-weight:500">' + escapeHtmlFam(m.nome || 'Co-tutor') + '</div>'
+        + '<div style="font-size:.78rem;color:var(--ink-soft)">' + escapeHtmlFam(m.email || '') + '</div></div>'
+        + '<button class="btn btn-secondary btn-sm" onclick="sairOuRemoverFamilia(\'' + m.vinculo_id + '\', false)">Remover</button>'
+        + '</div>';
+    });
+
+    if(vagaLivre){
+      const conv = info.convite_pendente;
+      if(conv && conv.codigo){
+        const link = window.location.origin + '/?convite=' + conv.codigo;
+        const msg = encodeURIComponent('Oi! Quero te adicionar como co-tutor no Patinha Viva 🐾 para cuidarmos dos nossos pets juntos.\n\nCrie sua conta (ou entre) por este link e o convite será aplicado automaticamente:\n' + link + '\n\nOu cole o código em "Minha Família": ' + conv.codigo + '\nO convite expira em 48 horas.');
+        html += '<div style="background:rgba(124,47,214,.06);border:1px dashed rgba(124,47,214,.3);border-radius:12px;padding:14px;margin-top:6px">'
+          + '<div style="font-size:.82rem;color:var(--ink-soft);margin-bottom:6px">Código de convite (válido por 48h):</div>'
+          + '<div style="font-family:monospace;font-size:1.5rem;font-weight:700;letter-spacing:3px;color:var(--violet);margin-bottom:12px">' + escapeHtmlFam(conv.codigo) + '</div>'
+          + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+          + '<a class="btn btn-primary btn-sm" href="https://wa.me/?text=' + msg + '" target="_blank" rel="noopener">Compartilhar no WhatsApp</a>'
+          + '<button class="btn btn-secondary btn-sm" onclick="copiarConvite(\'' + conv.codigo + '\')">Copiar código</button>'
+          + '<button class="btn btn-secondary btn-sm" onclick="gerarConviteFamilia()">Gerar novo</button>'
+          + '</div></div>';
+      } else {
+        html += '<button class="btn btn-primary" onclick="gerarConviteFamilia()">Gerar código de convite</button>';
+      }
+    } else if(temMembro){
+      html += '<p style="font-size:.82rem;color:var(--ink-soft);margin-top:6px">Limite de tutores atingido. Remova o co-tutor atual para convidar outro.</p>';
+    }
+    html += '</div>';
+  }
+
+  // Entrar em uma família com um código (só p/ quem ainda não tem co-tutor próprio)
+  if(!temMembro){
+    html += '<div class="card">'
+      + '<div class="card-title">Recebeu um convite?</div>'
+      + '<p style="font-size:.85rem;color:var(--ink-mid);margin:6px 0 12px">Cole o código que o titular te enviou para virar co-tutor da família dele.</p>'
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+      + '<input id="familia-codigo-input" class="form-input" style="flex:1;min-width:160px;text-transform:uppercase" placeholder="Ex.: A1B2C3D4" maxlength="8"/>'
+      + '<button class="btn btn-primary" onclick="aceitarConvitePagina()">Entrar na família</button>'
+      + '</div>'
+      + '<div id="familia-codigo-erro" style="display:none;font-size:.82rem;color:var(--rose);margin-top:10px"></div>'
+      + '</div>';
+  }
+
+  box.innerHTML = html;
+}
+
+async function gerarConviteFamilia(){
+  const { error } = await supabase.rpc('pv_criar_convite');
+  if(error){ alert('Não foi possível gerar o convite: ' + error.message); return; }
+  await renderFamilia();
+}
+
+function copiarConvite(codigo){
+  try { navigator.clipboard.writeText(codigo); alert('Código copiado: ' + codigo); }
+  catch(e){ alert('Código do convite: ' + codigo); }
+}
+
+async function aceitarConvitePagina(){
+  const inp = document.getElementById('familia-codigo-input');
+  const erro = document.getElementById('familia-codigo-erro');
+  const codigo = (inp?.value || '').trim().toUpperCase();
+  if(erro){ erro.style.display = 'none'; }
+  if(!codigo){ if(erro){ erro.style.display = 'block'; erro.textContent = 'Digite o código do convite.'; } return; }
+  await aceitarConviteFamilia(codigo, erro);
+}
+
+async function aceitarConviteFamilia(codigo, erroEl){
+  const { data, error } = await supabase.rpc('pv_aceitar_convite', { p_codigo: codigo });
+  if(error){
+    if(erroEl){ erroEl.style.display = 'block'; erroEl.textContent = error.message; }
+    else { alert('Não foi possível aceitar o convite: ' + error.message); }
+    return;
+  }
+  await recarregarPetsFamilia();
+  await aplicarBadgeFamilia();
+  const nome = (data && data.dono_nome) || 'a família';
+  alert('Pronto! 🐾 Você agora é co-tutor de ' + nome + '. Os pets da família já aparecem para você.');
+  navigate('familia');
+}
+
+async function sairOuRemoverFamilia(vinculoId, ehSaida){
+  const msg = ehSaida
+    ? 'Sair desta família? Você perderá o acesso aos pets compartilhados.'
+    : 'Remover este co-tutor? Ele perderá o acesso aos pets da família.';
+  if(!confirm(msg)) return;
+  const { error } = await supabase.rpc('pv_sair_ou_remover', { p_vinculo_id: vinculoId });
+  if(error){ alert('Não foi possível concluir: ' + error.message); return; }
+  await recarregarPetsFamilia();
+  await aplicarBadgeFamilia();
+  await renderFamilia();
+}
+
+// Re-busca os pets (a RLS reflete a família) e atualiza as telas dependentes.
+async function recarregarPetsFamilia(){
+  const { data: pets } = await supabase.from('pets').select('*').eq('ativo', true);
+  userPets = pets || [];
+  currentPetId = userPets[0]?.id || null;
+  populatePetSelectors();
+  renderPets();
+  await renderDashboard();
 }
 
 function capitalizar(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
@@ -2511,6 +2708,15 @@ async function excluirPost(id){
 window.addEventListener('load', async () => {
   // Se voltamos pelo link de redefinição, mostra a tela de nova senha (não entra no app)
   if(window.__isRecovery){ mostrarResetSenha(); return; }
+
+  // Multi-tutor: link de convite (?convite=CODIGO) — guarda o código e processa
+  // após o login (vale tanto p/ quem já tem sessão quanto p/ quem vai criar conta).
+  let conviteParam = '';
+  try {
+    conviteParam = (new URLSearchParams(window.location.search).get('convite')||'').trim().toUpperCase();
+    if(conviteParam){ sessionStorage.setItem('pv_convite', conviteParam); history.replaceState(null,'',window.location.pathname); }
+  } catch(e){}
+
   const { data: { session } } = await supabase.auth.getSession();
   if(session) {
     await initApp(session.user);
@@ -2524,6 +2730,10 @@ window.addEventListener('load', async () => {
       showSubscribeScreen(planoParam);
     }
   } catch(e){}
+  // Visitante com convite e sem sessão: avisa que precisa entrar/criar conta.
+  if(conviteParam){
+    setTimeout(() => alert('Você recebeu um convite para ser co-tutor no Patinha Viva 🐾\nCrie sua conta ou entre para aceitar — o convite será aplicado automaticamente.'), 300);
+  }
 });
 
 // ── NAVEGAÇÃO ─────────────────────────────────────────────
@@ -2571,6 +2781,9 @@ function navigate(page) {
   }
   if(page === 'admin'){
     renderAdmin();
+  }
+  if(page === 'familia'){
+    renderFamilia();
   }
 }
 
