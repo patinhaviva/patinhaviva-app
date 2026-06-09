@@ -15,6 +15,7 @@
 <meta name="apple-mobile-web-app-title" content="Patinha Viva"/>
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=DM+Mono:wght@400&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script>
 const SUPABASE_URL = 'https://lpddtwgqjtbpjvpslwtu.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_HGiHsjQ3RIGxgnc5T-w0Aw_fhg4nLmG';
@@ -228,9 +229,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
 .post-action.liked{color:var(--rose)}
 .post-photo{width:100%;border-radius:12px;max-height:240px;object-fit:cover;margin-bottom:12px}
 
-/* Testamento */
-.testament-step{display:flex;gap:16px;padding:20px 0;border-bottom:1px solid rgba(45,38,64,.05)}
-.testament-step:last-child{border-bottom:none}
+/* Passos (reuso geral) */
 .step-num{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--rose),var(--violet));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;flex-shrink:0}
 .step-content h4{font-weight:600;font-size:.9rem;color:var(--ink);margin-bottom:4px}
 .step-content p{font-size:.82rem;color:var(--ink-mid);line-height:1.6}
@@ -488,8 +487,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
       </div>
       <div class="nav-section">
         <div class="nav-section-label">Proteção</div>
-        <button class="nav-item" onclick="navigate('testamento')">
-          <span class="nav-icon">⚖</span> Testamento Pet
+        <button class="nav-item" onclick="navigate('sucessao')">
+          <span class="nav-icon">⚖</span> Planejamento Sucessório
         </button>
         <button class="nav-item" onclick="navigate('comunidade')">
           <span class="nav-icon">💬</span> Comunidade
@@ -696,18 +695,180 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
       </div>
     </div>
 
-    <!-- TESTAMENTO PET -->
-    <div class="page" id="page-testamento">
+    <!-- PLANEJAMENTO SUCESSÓRIO PET -->
+    <div class="page" id="page-sucessao">
       <div class="page-header">
-        <div class="page-title">Testamento Pet ⚖</div>
-        <div class="page-subtitle">Planejamento de cuidados futuros para o seu pet</div>
+        <div class="page-title">Planejamento Sucessório Pet ⚖</div>
+        <div class="page-subtitle">Diretivas de Cuidado Animal Pós-Falecimento</div>
       </div>
 
-      <div class="card" style="text-align:center;padding:48px 24px;max-width:640px;margin:0 auto">
+      <!-- Aviso institucional (sempre visível) -->
+      <div class="card" style="max-width:860px;margin:0 auto 18px;border-left:4px solid var(--violet);background:rgba(124,47,214,.05)">
+        <div style="font-size:.84rem;color:var(--ink-mid);line-height:1.6">
+          ⚠️ <b>Importante.</b> Este recurso possui finalidade <b>organizacional, afetiva e informativa</b>.
+          O documento gerado <b>não constitui testamento, escritura pública, instrumento sucessório ou ato jurídico formal</b>,
+          nem transfere bens ou herança. Ele organiza a sua vontade sobre a continuidade dos cuidados do seu pet
+          para orientar familiares e o futuro cuidador. Para validade jurídica, procure um cartório de notas ou profissional habilitado.
+        </div>
+      </div>
+
+      <!-- GATE: plano sem acesso -->
+      <div id="suc-gate" class="card" style="display:none;text-align:center;padding:44px 24px;max-width:640px;margin:0 auto">
         <div style="font-size:3rem;margin-bottom:12px">⚖</div>
-        <div style="font-family:'Lora',serif;font-size:1.3rem;font-weight:700;color:var(--ink);margin-bottom:10px">Em desenvolvimento</div>
-        <p style="font-size:.88rem;color:var(--ink-mid);line-height:1.7;margin-bottom:8px">Estamos estruturando este recurso com a nossa equipe jurídica para garantir um instrumento de planejamento correto e seguro para a destinação de cuidados do seu pet.</p>
-        <p style="font-size:.8rem;color:var(--ink-soft);line-height:1.6">Você será avisado assim que estiver disponível.</p>
+        <div style="font-family:'Lora',serif;font-size:1.25rem;font-weight:700;color:var(--ink);margin-bottom:10px">Recurso dos planos pagos</div>
+        <p style="font-size:.88rem;color:var(--ink-mid);line-height:1.7;margin-bottom:18px">O Planejamento Sucessório Pet está disponível nos planos <b>Premium</b> (1 pet), <b>Duo</b> (até 2) e <b>Família</b> (até 4). Assine para registrar quem cuidará do seu pet e gerar o Plano de Continuidade dos Cuidados.</p>
+        <button class="btn btn-primary" onclick="navigate('plano')">Ver planos</button>
+      </div>
+
+      <!-- Aviso: recurso ainda não instalado no banco -->
+      <div id="suc-indisponivel" class="card" style="display:none;text-align:center;padding:44px 24px;max-width:640px;margin:0 auto">
+        <div style="font-size:3rem;margin-bottom:12px">🛠</div>
+        <div style="font-family:'Lora',serif;font-size:1.2rem;font-weight:700;color:var(--ink);margin-bottom:10px">Estamos finalizando este recurso</div>
+        <p style="font-size:.86rem;color:var(--ink-mid);line-height:1.7">Volte em instantes. Se o problema persistir, fale com o suporte.</p>
+      </div>
+
+      <!-- WIZARD -->
+      <div id="suc-wizard" style="display:none;max-width:860px;margin:0 auto">
+
+        <!-- Progresso -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <div style="flex:1;height:8px;background:var(--bg);border-radius:6px;overflow:hidden">
+            <div id="suc-progress-bar" style="height:100%;width:12%;background:linear-gradient(90deg,var(--violet),var(--teal));transition:width .3s"></div>
+          </div>
+          <div id="suc-progress-txt" style="font-size:.78rem;color:var(--ink-soft);white-space:nowrap">Passo 1 de 8</div>
+        </div>
+        <div id="suc-step-titulo" style="font-family:'Lora',serif;font-size:1.15rem;color:var(--ink);margin:6px 0 16px"></div>
+
+        <!-- PASSO 1 — TUTOR -->
+        <div class="suc-step card" data-step="1">
+          <p style="font-size:.82rem;color:var(--ink-soft);margin-bottom:16px">Seus dados identificam quem manifesta a vontade neste documento.</p>
+          <div class="grid-2" style="gap:14px">
+            <div class="form-group"><label class="form-label">Nome completo *</label><input id="suc-t-nome" class="form-input" type="text"/></div>
+            <div class="form-group"><label class="form-label">CPF *</label><input id="suc-t-cpf" class="form-input" type="text" inputmode="numeric" placeholder="000.000.000-00"/></div>
+            <div class="form-group"><label class="form-label">Data de nascimento</label><input id="suc-t-nasc" class="form-input" type="date"/></div>
+            <div class="form-group"><label class="form-label">Estado civil</label>
+              <select id="suc-t-civil" class="form-input"><option value="">—</option><option>Solteiro(a)</option><option>Casado(a)</option><option>União estável</option><option>Divorciado(a)</option><option>Viúvo(a)</option></select></div>
+            <div class="form-group"><label class="form-label">Profissão</label><input id="suc-t-prof" class="form-input" type="text"/></div>
+            <div class="form-group"><label class="form-label">Telefone</label><input id="suc-t-tel" class="form-input" type="tel" placeholder="(00) 00000-0000"/></div>
+            <div class="form-group" style="grid-column:1/-1"><label class="form-label">E-mail</label><input id="suc-t-email" class="form-input" type="email"/></div>
+            <div class="form-group" style="grid-column:1/-1"><label class="form-label">Endereço completo</label><input id="suc-t-end" class="form-input" type="text" placeholder="Rua, número, complemento, bairro"/></div>
+            <div class="form-group"><label class="form-label">Cidade</label><input id="suc-t-cidade" class="form-input" type="text"/></div>
+            <div class="form-group"><label class="form-label">Estado (UF)</label><input id="suc-t-uf" class="form-input" type="text" maxlength="2" placeholder="MG"/></div>
+            <div class="form-group"><label class="form-label">CEP</label><input id="suc-t-cep" class="form-input" type="text" inputmode="numeric" placeholder="00000-000"/></div>
+          </div>
+        </div>
+
+        <!-- PASSO 2 — PETS E CUIDADOS -->
+        <div class="suc-step card" data-step="2" style="display:none">
+          <p style="font-size:.82rem;color:var(--ink-soft);margin-bottom:6px">Selecione os pets que este planejamento cobre <span id="suc-pets-limite-txt"></span>. Os dados básicos vêm do cadastro; complete as informações de cuidado.</p>
+          <div id="suc-pets-vazio" style="display:none;font-size:.86rem;color:var(--ink-mid);background:var(--bg);border-radius:12px;padding:16px;margin-top:8px">Você ainda não tem pets cadastrados. Cadastre um pet em <b>Meus Pets</b> para incluí-lo aqui.</div>
+          <div id="suc-pets-lista" style="display:flex;flex-direction:column;gap:8px;margin:12px 0"></div>
+          <div id="suc-pets-forms" style="display:flex;flex-direction:column;gap:14px"></div>
+        </div>
+
+        <!-- PASSO 3 — CUIDADOR PRINCIPAL -->
+        <div class="suc-step card" data-step="3" style="display:none">
+          <p style="font-size:.82rem;color:var(--ink-soft);margin-bottom:16px">Pessoa que você gostaria que assumisse os cuidados do(s) seu(s) pet(s).</p>
+          <div class="grid-2" style="gap:14px">
+            <div class="form-group"><label class="form-label">Nome completo</label><input id="suc-cp-nome" class="form-input" type="text"/></div>
+            <div class="form-group"><label class="form-label">CPF</label><input id="suc-cp-cpf" class="form-input" type="text" inputmode="numeric" placeholder="000.000.000-00"/></div>
+            <div class="form-group"><label class="form-label">Telefone</label><input id="suc-cp-tel" class="form-input" type="tel"/></div>
+            <div class="form-group"><label class="form-label">E-mail</label><input id="suc-cp-email" class="form-input" type="email"/></div>
+            <div class="form-group" style="grid-column:1/-1"><label class="form-label">Endereço</label><input id="suc-cp-end" class="form-input" type="text"/></div>
+            <div class="form-group"><label class="form-label">Grau de relacionamento</label><input id="suc-cp-rel" class="form-input" type="text" placeholder="Ex: irmã, amigo"/></div>
+            <div class="form-group"><label class="form-label">Já foi informada?</label><select id="suc-cp-informada" class="form-input"><option value="">—</option><option>Sim</option><option>Não</option></select></div>
+            <div class="form-group"><label class="form-label">Concorda previamente?</label><select id="suc-cp-concorda" class="form-input"><option value="">—</option><option>Sim</option><option>Não</option><option>Não sei</option></select></div>
+          </div>
+          <div style="background:rgba(124,47,214,.06);border-radius:12px;padding:12px 14px;font-size:.8rem;color:var(--ink-mid);margin-top:14px">Ao informar dados de outra pessoa, você declara ter ciência e autorização dela para registrá-los aqui.</div>
+        </div>
+
+        <!-- PASSO 4 — CUIDADOR SUBSTITUTO -->
+        <div class="suc-step card" data-step="4" style="display:none">
+          <p style="font-size:.82rem;color:var(--ink-soft);margin-bottom:16px">Caso o cuidador principal não possa assumir, quem seria a segunda opção?</p>
+          <div class="grid-2" style="gap:14px">
+            <div class="form-group"><label class="form-label">Nome completo</label><input id="suc-cs-nome" class="form-input" type="text"/></div>
+            <div class="form-group"><label class="form-label">CPF</label><input id="suc-cs-cpf" class="form-input" type="text" inputmode="numeric" placeholder="000.000.000-00"/></div>
+            <div class="form-group"><label class="form-label">Telefone</label><input id="suc-cs-tel" class="form-input" type="tel"/></div>
+            <div class="form-group"><label class="form-label">E-mail</label><input id="suc-cs-email" class="form-input" type="email"/></div>
+            <div class="form-group" style="grid-column:1/-1"><label class="form-label">Endereço</label><input id="suc-cs-end" class="form-input" type="text"/></div>
+            <div class="form-group"><label class="form-label">Grau de relacionamento</label><input id="suc-cs-rel" class="form-input" type="text"/></div>
+            <div class="form-group"><label class="form-label">Já foi informada?</label><select id="suc-cs-informada" class="form-input"><option value="">—</option><option>Sim</option><option>Não</option></select></div>
+            <div class="form-group"><label class="form-label">Concorda previamente?</label><select id="suc-cs-concorda" class="form-input"><option value="">—</option><option>Sim</option><option>Não</option><option>Não sei</option></select></div>
+          </div>
+        </div>
+
+        <!-- PASSO 5 — CONTATOS DE EMERGÊNCIA -->
+        <div class="suc-step card" data-step="5" style="display:none">
+          <p style="font-size:.82rem;color:var(--ink-soft);margin-bottom:16px">Pessoas que devem ser avisadas rapidamente (opcional).</p>
+          <div class="grid-2" style="gap:14px">
+            <div class="form-group"><label class="form-label">Contato 1 — nome</label><input id="suc-emg1-nome" class="form-input" type="text"/></div>
+            <div class="form-group"><label class="form-label">Contato 1 — telefone</label><input id="suc-emg1-tel" class="form-input" type="tel"/></div>
+            <div class="form-group"><label class="form-label">Contato 2 — nome</label><input id="suc-emg2-nome" class="form-input" type="text"/></div>
+            <div class="form-group"><label class="form-label">Contato 2 — telefone</label><input id="suc-emg2-tel" class="form-input" type="tel"/></div>
+          </div>
+        </div>
+
+        <!-- PASSO 6 — VALOR FINANCEIRO -->
+        <div class="suc-step card" data-step="6" style="display:none">
+          <div class="form-group" style="margin-bottom:14px">
+            <label class="form-label">Deseja indicar um valor para auxiliar nos cuidados?</label>
+            <select id="suc-fin-indicar" class="form-input" onchange="sucToggleFinanceiro()"><option value="">—</option><option>Sim</option><option>Não</option></select>
+          </div>
+          <div id="suc-fin-detalhe" style="display:none">
+            <div style="background:rgba(0,180,170,.08);border-radius:12px;padding:12px 14px;font-size:.8rem;color:var(--ink-mid);margin-bottom:14px">
+              💡 O Patinha Viva <b>não retém, não administra e não garante</b> esse valor. Trata-se apenas do registro da sua vontade — a destinação ocorre fora da plataforma, entre você e a pessoa indicada.
+            </div>
+            <div class="grid-2" style="gap:14px">
+              <div class="form-group"><label class="form-label">Valor (R$)</label><input id="suc-fin-valor" class="form-input" type="text" inputmode="decimal" placeholder="Ex: 5.000,00"/></div>
+              <div class="form-group"><label class="form-label">Beneficiário — nome</label><input id="suc-fin-bnome" class="form-input" type="text"/></div>
+              <div class="form-group"><label class="form-label">Beneficiário — CPF</label><input id="suc-fin-bcpf" class="form-input" type="text" inputmode="numeric"/></div>
+              <div class="form-group"><label class="form-label">Beneficiário — telefone</label><input id="suc-fin-btel" class="form-input" type="tel"/></div>
+              <div class="form-group" style="grid-column:1/-1"><label class="form-label">Beneficiário — e-mail</label><input id="suc-fin-bemail" class="form-input" type="email"/></div>
+            </div>
+            <div style="font-size:.82rem;color:var(--ink-mid);margin:14px 0 8px">Finalidade do valor</div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px 18px">
+              <label style="font-size:.84rem;color:var(--ink-mid)"><input type="checkbox" class="suc-fin-fim" value="Alimentação"/> Alimentação</label>
+              <label style="font-size:.84rem;color:var(--ink-mid)"><input type="checkbox" class="suc-fin-fim" value="Veterinário"/> Veterinário</label>
+              <label style="font-size:.84rem;color:var(--ink-mid)"><input type="checkbox" class="suc-fin-fim" value="Medicamentos"/> Medicamentos</label>
+              <label style="font-size:.84rem;color:var(--ink-mid)"><input type="checkbox" class="suc-fin-fim" value="Banho e tosa"/> Banho e tosa</label>
+              <label style="font-size:.84rem;color:var(--ink-mid)"><input type="checkbox" class="suc-fin-fim" value="Bem-estar"/> Bem-estar</label>
+              <label style="font-size:.84rem;color:var(--ink-mid)"><input type="checkbox" class="suc-fin-fim" value="Despesas gerais"/> Despesas gerais</label>
+            </div>
+            <div class="form-group" style="margin-top:14px"><label class="form-label">Observações</label><textarea id="suc-fin-obs" class="form-input" rows="2"></textarea></div>
+          </div>
+        </div>
+
+        <!-- PASSO 7 — DIRETIVAS DE CUIDADO -->
+        <div class="suc-step card" data-step="7" style="display:none">
+          <p style="font-size:.82rem;color:var(--ink-soft);margin-bottom:16px">Marque as orientações que deseja registrar.</p>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <label style="font-size:.88rem;color:var(--ink-mid)"><input type="checkbox" id="suc-dir-juntos"/> Desejo que meus pets permaneçam juntos.</label>
+            <label style="font-size:.88rem;color:var(--ink-mid)"><input type="checkbox" id="suc-dir-alim"/> Desejo que a rotina alimentar seja mantida.</label>
+            <label style="font-size:.88rem;color:var(--ink-mid)"><input type="checkbox" id="suc-dir-vet"/> Desejo que o acompanhamento veterinário seja mantido.</label>
+            <label style="font-size:.88rem;color:var(--ink-mid)"><input type="checkbox" id="suc-dir-naodoar"/> Desejo que não sejam doados sem contato prévio ao cuidador substituto.</label>
+            <label style="font-size:.88rem;color:var(--ink-mid)"><input type="checkbox" id="suc-dir-medico"/> Desejo que sejam respeitadas as orientações médicas registradas.</label>
+          </div>
+          <div class="form-group" style="margin-top:16px"><label class="form-label">Outras instruções importantes</label><textarea id="suc-dir-outras" class="form-input" rows="4"></textarea></div>
+        </div>
+
+        <!-- PASSO 8 — REVISÃO -->
+        <div class="suc-step card" data-step="8" style="display:none">
+          <div style="font-family:'Lora',serif;font-size:1.1rem;color:var(--ink);margin-bottom:12px">Revisão</div>
+          <div id="suc-revisao" style="font-size:.85rem;color:var(--ink-mid);line-height:1.7"></div>
+          <div style="background:rgba(124,47,214,.05);border-left:4px solid var(--violet);border-radius:10px;padding:12px 14px;font-size:.8rem;color:var(--ink-mid);line-height:1.6;margin-top:16px">
+            Ao gerar, você baixa o <b>Plano de Continuidade dos Cuidados do Pet</b> em PDF. Lembre-se: documento de finalidade organizacional e informativa, sem natureza jurídica formal.
+          </div>
+          <button class="btn btn-primary" style="width:100%;margin-top:16px" onclick="sucGerarPDF()">📄 Gerar Plano de Continuidade (PDF)</button>
+        </div>
+
+        <!-- NAV -->
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:18px">
+          <button class="btn btn-ghost btn-sm" id="suc-btn-voltar" onclick="sucGoto(sucState.step-1)" style="display:none">← Voltar</button>
+          <div style="flex:1"></div>
+          <span id="suc-save-status" style="font-size:.78rem;color:var(--ink-soft)"></span>
+          <button class="btn btn-secondary btn-sm" onclick="sucSalvar(false)">💾 Salvar rascunho</button>
+          <button class="btn btn-primary btn-sm" id="suc-btn-proximo" onclick="sucGoto(sucState.step+1)">Próximo →</button>
+        </div>
       </div>
     </div>
 
@@ -1249,7 +1410,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
           <div>✓ Álbum compartilhado entre tutores</div>
           <div>✓ Comunidade</div>
           <div>✓ Plaquinha QR (sob pedido)</div>
-          <div style="color:var(--ink-soft)">⏳ Testamento Pet (em breve)</div>
+          <div>✓ Planejamento Sucessório Pet (1 pet)</div>
         </div>
         <button class="btn btn-secondary" style="width:100%" onclick="pedirAssinatura('premium')">Assinar Premium</button>
       </div>
@@ -1267,7 +1428,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
           <div>✓ Álbum compartilhado entre tutores</div>
           <div>✓ Comunidade</div>
           <div>✓ Plaquinhas QR (sob pedido)</div>
-          <div style="color:var(--ink-soft)">⏳ Testamentos Pet (em breve)</div>
+          <div>✓ Planejamento Sucessório Pet (até 2 pets)</div>
         </div>
         <button class="btn btn-primary" style="width:100%" onclick="pedirAssinatura('duo')">Assinar Duo</button>
       </div>
@@ -1284,7 +1445,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
           <div>✓ Álbum compartilhado entre tutores</div>
           <div>✓ Comunidade</div>
           <div>✓ Plaquinhas QR (sob pedido)</div>
-          <div style="color:var(--ink-soft)">⏳ Testamentos Pet (em breve)</div>
+          <div>✓ Planejamento Sucessório Pet (até 4 pets)</div>
         </div>
         <button class="btn btn-secondary" style="width:100%" onclick="pedirAssinatura('familia')">Assinar Família</button>
       </div>
@@ -2785,6 +2946,9 @@ function navigate(page) {
   if(page === 'familia'){
     renderFamilia();
   }
+  if(page === 'sucessao'){
+    renderSucessao();
+  }
 }
 
 // ── ADMIN (métricas agregadas via RPC com checagem de is_admin) ──
@@ -3006,6 +3170,354 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
 document.addEventListener('keydown', e => {
   if(e.key==='Escape') document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
 });
+</script>
+<script>
+// ══════════════════════════════════════════════════════════
+// PLANEJAMENTO SUCESSÓRIO PET — Diretivas de Cuidado Animal Pós-Falecimento
+// MVP: wizard de 8 passos → salva em sucessao_planos (jsonb) → gera 1 PDF
+// (Plano de Continuidade dos Cuidados do Pet). SEM natureza jurídica.
+// Degrada seguro: gate p/ plano livre; aviso se a tabela ainda não existe.
+// ══════════════════════════════════════════════════════════
+const SUC_LIMITE_PETS = { premium:1, duo:2, familia:4 };
+const SUC_TITULOS = {
+  1:'Seus dados (tutor)', 2:'Pets e cuidados', 3:'Cuidador principal',
+  4:'Cuidador substituto', 5:'Contatos de emergência', 6:'Valor para os cuidados',
+  7:'Diretivas de cuidado', 8:'Revisão e geração'
+};
+let sucState = { step:1, data:{}, status:'rascunho', loaded:false, petsSel:[] };
+
+function sucEl(id){ return document.getElementById(id); }
+function sucVal(id){ const e=sucEl(id); return e ? (e.value||'').trim() : ''; }
+function sucSet(id,v){ const e=sucEl(id); if(e) e.value = (v==null?'':v); }
+function sucChk(id){ const e=sucEl(id); return !!(e&&e.checked); }
+function sucSetChk(id,v){ const e=sucEl(id); if(e) e.checked=!!v; }
+function sucEsc(s){ s=(s==null?'':String(s)); return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function sucAttr(s){ s=(s==null?'':String(s)); return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function sucDataBR(d){ try{ return formatarDataBR(d); }catch(e){ return d||''; } }
+function sucEspecie(e){ return ({cao:'Cão',gato:'Gato',coelho:'Coelho',outro:'Outro'})[e]||e||''; }
+function sucSexo(s){ return ({macho:'Macho',femea:'Fêmea'})[s]||s||''; }
+
+async function renderSucessao(){
+  const gate=sucEl('suc-gate'), wiz=sucEl('suc-wizard'), indisp=sucEl('suc-indisponivel');
+  gate.style.display='none'; wiz.style.display='none'; indisp.style.display='none';
+
+  const plano=(currentProfile?.plano||'livre').toLowerCase();
+  if(!SUC_LIMITE_PETS[plano]){ gate.style.display='block'; return; }
+
+  // Reentrada: o wizard já foi montado nesta sessão → preserva o que foi digitado.
+  if(sucState.built){
+    wiz.style.display='block';
+    sucColeta();          // captura o DOM atual para o estado
+    sucRenderPets();      // re-renderiza pets a partir do estado (restaura os campos)
+    sucGoto(sucState.step||1, true);
+    return;
+  }
+
+  if(!sucState.loaded){
+    try{
+      const { data, error } = await supabase.from('sucessao_planos')
+        .select('*').eq('tutor_id', currentUser.id).maybeSingle();
+      if(error){
+        if(error.code==='42P01' || /sucessao_planos/i.test(error.message||'')){ indisp.style.display='block'; return; }
+        // outro erro: segue com formulário vazio
+      }
+      if(data){ sucState.data=data.dados||{}; sucState.status=data.status||'rascunho'; sucState.step=1; }
+    }catch(e){ indisp.style.display='block'; return; }
+    sucState.loaded=true;
+  }
+
+  wiz.style.display='block';
+  sucRenderPets();
+  sucPreencher();
+  sucState.built=true;
+  sucGoto(sucState.step||1, true);
+}
+
+function sucRenderPets(){
+  const plano=(currentProfile?.plano||'livre').toLowerCase();
+  const limite=SUC_LIMITE_PETS[plano]||1;
+  const lt=sucEl('suc-pets-limite-txt'); if(lt) lt.textContent='(até '+limite+' '+(limite>1?'pets':'pet')+')';
+  const lista=sucEl('suc-pets-lista'), vazio=sucEl('suc-pets-vazio'), forms=sucEl('suc-pets-forms');
+  lista.innerHTML=''; forms.innerHTML='';
+  const pets=(typeof userPets!=='undefined' && userPets)?userPets:[];
+  if(!pets.length){ vazio.style.display='block'; return; }
+  vazio.style.display='none';
+
+  const savedPets=sucState.data.pets||{};
+  const selSalva=sucState.data.petsSel||Object.keys(savedPets);
+  sucState.petsSel=pets.filter(p=>selSalva.indexOf(p.id)!==-1).map(p=>p.id);
+  if(!sucState.petsSel.length && pets.length) sucState.petsSel=[pets[0].id];
+  sucState.petsSel=sucState.petsSel.slice(0,limite);
+
+  pets.forEach(p=>{
+    const checked=sucState.petsSel.indexOf(p.id)!==-1;
+    const row=document.createElement('label');
+    row.style.cssText='display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg);border-radius:10px;cursor:pointer;font-size:.88rem;color:var(--ink)';
+    row.innerHTML='<input type="checkbox" '+(checked?'checked':'')+' onchange="sucTogglePet(\''+p.id+'\',this)"/> '+petEmoji(p)+' <b>'+sucEsc(p.nome||'Pet')+'</b> <span style="color:var(--ink-soft);font-size:.8rem">'+sucEsc(p.raca||p.especie||'')+'</span>';
+    lista.appendChild(row);
+  });
+  sucRenderPetForms();
+}
+
+function sucTogglePet(id, cb){
+  const plano=(currentProfile?.plano||'livre').toLowerCase();
+  const limite=SUC_LIMITE_PETS[plano]||1;
+  if(cb.checked){
+    if(sucState.petsSel.length>=limite){ cb.checked=false; alert('Seu plano cobre até '+limite+' pet(s). Para incluir mais, troque de plano.'); return; }
+    if(sucState.petsSel.indexOf(id)===-1) sucState.petsSel.push(id);
+  } else {
+    sucState.petsSel=sucState.petsSel.filter(x=>x!==id);
+  }
+  sucColetaPets();
+  sucRenderPetForms();
+}
+
+function sucRenderPetForms(){
+  const forms=sucEl('suc-pets-forms'); forms.innerHTML='';
+  const pets=(userPets||[]); const saved=sucState.data.pets||{};
+  sucState.petsSel.forEach(pid=>{
+    const p=pets.find(x=>x.id===pid); if(!p) return;
+    const d=saved[pid]||{};
+    const idade=p.data_nascimento?(' · '+calcIdade(p.data_nascimento)):'';
+    const F=function(label,f,span){ return '<div class="form-group"'+(span?' style="grid-column:1/-1"':'')+'><label class="form-label">'+label+'</label><input class="form-input suc-pet-f" data-pid="'+pid+'" data-f="'+f+'" type="text" value="'+sucAttr(d[f])+'"/></div>'; };
+    const wrap=document.createElement('div');
+    wrap.style.cssText='border:1.5px solid rgba(124,47,214,.15);border-radius:14px;padding:16px';
+    wrap.innerHTML=
+      '<div style="font-family:\'Lora\',serif;font-size:1rem;color:var(--ink);margin-bottom:4px">'+petEmoji(p)+' '+sucEsc(p.nome||'Pet')+'</div>'+
+      '<div style="font-size:.78rem;color:var(--ink-soft);margin-bottom:12px">'+sucEsc([sucEspecie(p.especie), p.raca, sucSexo(p.sexo)].filter(Boolean).join(' · ')+idade)+'</div>'+
+      '<div class="grid-2" style="gap:12px">'+
+        F('Cor/Pelagem','cor')+F('Microchip','microchip')+
+        '<div class="form-group"><label class="form-label">Castrado?</label><select class="form-input suc-pet-f" data-pid="'+pid+'" data-f="castrado"><option value="">—</option><option '+(d.castrado==='Sim'?'selected':'')+'>Sim</option><option '+(d.castrado==='Não'?'selected':'')+'>Não</option></select></div>'+
+        F('Veterinário','vet')+F('Clínica','clinica')+F('Telefone da clínica','telclinica')+
+        F('Doenças conhecidas','doencas',true)+
+        F('Medicamentos contínuos','medicamentos')+F('Alergias','alergias')+F('Vacinas importantes','vacinas')+
+        F('Marca da ração','racao')+F('Quantidade diária','racaoqtd')+
+        F('Rotina de alimentação','rotalim',true)+
+        F('Rotina de passeios','rotpasseio')+F('Rotina de higiene','rothigiene')+
+        F('Necessidades especiais','necessidades',true)+
+        F('Comportamentos / medos','comportamentos')+F('Restrições','restricoes')+
+      '</div>';
+    forms.appendChild(wrap);
+  });
+}
+
+function sucColetaPets(){
+  const pets=sucState.data.pets||{}; const novo={};
+  sucState.petsSel.forEach(pid=>{ novo[pid]=pets[pid]?Object.assign({},pets[pid]):{}; });
+  document.querySelectorAll('.suc-pet-f').forEach(el=>{
+    const pid=el.getAttribute('data-pid'), f=el.getAttribute('data-f');
+    if(!novo[pid]) novo[pid]={};
+    novo[pid][f]=(el.value||'').trim();
+  });
+  sucState.petsSel.forEach(pid=>{
+    const p=(userPets||[]).find(x=>x.id===pid);
+    if(p){ novo[pid]._nome=p.nome; novo[pid]._especie=p.especie; novo[pid]._raca=p.raca; novo[pid]._sexo=p.sexo; novo[pid]._nasc=p.data_nascimento; }
+  });
+  sucState.data.pets=novo;
+  sucState.data.petsSel=sucState.petsSel.slice();
+}
+
+function sucColeta(){
+  const d=sucState.data;
+  d.tutor={ nome:sucVal('suc-t-nome'), cpf:sucVal('suc-t-cpf'), nasc:sucVal('suc-t-nasc'), civil:sucVal('suc-t-civil'), prof:sucVal('suc-t-prof'), tel:sucVal('suc-t-tel'), email:sucVal('suc-t-email'), end:sucVal('suc-t-end'), cidade:sucVal('suc-t-cidade'), uf:sucVal('suc-t-uf'), cep:sucVal('suc-t-cep') };
+  sucColetaPets();
+  d.cp={ nome:sucVal('suc-cp-nome'), cpf:sucVal('suc-cp-cpf'), tel:sucVal('suc-cp-tel'), email:sucVal('suc-cp-email'), end:sucVal('suc-cp-end'), rel:sucVal('suc-cp-rel'), informada:sucVal('suc-cp-informada'), concorda:sucVal('suc-cp-concorda') };
+  d.cs={ nome:sucVal('suc-cs-nome'), cpf:sucVal('suc-cs-cpf'), tel:sucVal('suc-cs-tel'), email:sucVal('suc-cs-email'), end:sucVal('suc-cs-end'), rel:sucVal('suc-cs-rel'), informada:sucVal('suc-cs-informada'), concorda:sucVal('suc-cs-concorda') };
+  d.emg=[ {nome:sucVal('suc-emg1-nome'),tel:sucVal('suc-emg1-tel')}, {nome:sucVal('suc-emg2-nome'),tel:sucVal('suc-emg2-tel')} ];
+  const fim=[]; document.querySelectorAll('.suc-fin-fim:checked').forEach(c=>fim.push(c.value));
+  d.fin={ indicar:sucVal('suc-fin-indicar'), valor:sucVal('suc-fin-valor'), bnome:sucVal('suc-fin-bnome'), bcpf:sucVal('suc-fin-bcpf'), btel:sucVal('suc-fin-btel'), bemail:sucVal('suc-fin-bemail'), finalidades:fim, obs:sucVal('suc-fin-obs') };
+  d.dir={ juntos:sucChk('suc-dir-juntos'), alim:sucChk('suc-dir-alim'), vet:sucChk('suc-dir-vet'), naodoar:sucChk('suc-dir-naodoar'), medico:sucChk('suc-dir-medico'), outras:sucVal('suc-dir-outras') };
+  sucState.data=d;
+}
+
+function sucPreencher(){
+  const d=sucState.data||{}; const t=d.tutor||{};
+  sucSet('suc-t-nome', t.nome || currentProfile?.nome || '');
+  sucSet('suc-t-cpf', t.cpf); sucSet('suc-t-nasc', t.nasc); sucSet('suc-t-civil', t.civil);
+  sucSet('suc-t-prof', t.prof); sucSet('suc-t-tel', t.tel);
+  sucSet('suc-t-email', t.email || currentUser?.email || '');
+  sucSet('suc-t-end', t.end); sucSet('suc-t-cidade', t.cidade); sucSet('suc-t-uf', t.uf); sucSet('suc-t-cep', t.cep);
+  const cp=d.cp||{}; ['nome','cpf','tel','email','end','rel','informada','concorda'].forEach(f=>sucSet('suc-cp-'+f, cp[f]));
+  const cs=d.cs||{}; ['nome','cpf','tel','email','end','rel','informada','concorda'].forEach(f=>sucSet('suc-cs-'+f, cs[f]));
+  const emg=d.emg||[]; sucSet('suc-emg1-nome',emg[0]&&emg[0].nome); sucSet('suc-emg1-tel',emg[0]&&emg[0].tel); sucSet('suc-emg2-nome',emg[1]&&emg[1].nome); sucSet('suc-emg2-tel',emg[1]&&emg[1].tel);
+  const fin=d.fin||{}; sucSet('suc-fin-indicar',fin.indicar); sucSet('suc-fin-valor',fin.valor); sucSet('suc-fin-bnome',fin.bnome); sucSet('suc-fin-bcpf',fin.bcpf); sucSet('suc-fin-btel',fin.btel); sucSet('suc-fin-bemail',fin.bemail); sucSet('suc-fin-obs',fin.obs);
+  document.querySelectorAll('.suc-fin-fim').forEach(c=>{ c.checked=(fin.finalidades||[]).indexOf(c.value)!==-1; });
+  sucToggleFinanceiro();
+  const dir=d.dir||{}; sucSetChk('suc-dir-juntos',dir.juntos); sucSetChk('suc-dir-alim',dir.alim); sucSetChk('suc-dir-vet',dir.vet); sucSetChk('suc-dir-naodoar',dir.naodoar); sucSetChk('suc-dir-medico',dir.medico); sucSet('suc-dir-outras',dir.outras);
+}
+
+function sucToggleFinanceiro(){
+  const v=sucVal('suc-fin-indicar'); const det=sucEl('suc-fin-detalhe'); if(det) det.style.display=(v==='Sim')?'block':'none';
+}
+
+function sucGoto(n, inicial){
+  n=Math.max(1, Math.min(8, n));
+  if(!inicial) sucColeta();
+  sucState.step=n;
+  document.querySelectorAll('.suc-step').forEach(s=>{ s.style.display=(parseInt(s.getAttribute('data-step'),10)===n)?'block':'none'; });
+  const bar=sucEl('suc-progress-bar'); if(bar) bar.style.width=Math.round(n/8*100)+'%';
+  const txt=sucEl('suc-progress-txt'); if(txt) txt.textContent='Passo '+n+' de 8';
+  const tit=sucEl('suc-step-titulo'); if(tit) tit.textContent=SUC_TITULOS[n]||'';
+  const bv=sucEl('suc-btn-voltar'); if(bv) bv.style.display=n>1?'inline-flex':'none';
+  const bp=sucEl('suc-btn-proximo'); if(bp) bp.style.display=n<8?'inline-flex':'none';
+  if(n===8) sucRenderRevisao();
+  window.scrollTo(0,0);
+}
+
+function sucRevLinha(label,val){ return '<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid rgba(45,38,64,.06)"><div style="min-width:150px;color:var(--ink-soft)">'+label+'</div><div style="flex:1;color:var(--ink)">'+sucEsc(val)+'</div></div>'; }
+function sucRenderRevisao(){
+  sucColeta();
+  const d=sucState.data; const t=d.tutor||{};
+  let h='';
+  h+=sucRevLinha('Tutor', [t.nome, t.cpf&&('CPF '+t.cpf), t.cidade&&(t.cidade+(t.uf?'/'+t.uf:''))].filter(Boolean).join(' · ')||'—');
+  const nomesPets=sucState.petsSel.map(pid=>{ const p=(userPets||[]).find(x=>x.id===pid); return p?p.nome:''; }).filter(Boolean);
+  h+=sucRevLinha('Pets incluídos', nomesPets.join(', ')||'—');
+  h+=sucRevLinha('Cuidador principal', (d.cp&&d.cp.nome)?d.cp.nome:'—');
+  h+=sucRevLinha('Cuidador substituto', (d.cs&&d.cs.nome)?d.cs.nome:'—');
+  const fin=d.fin||{};
+  h+=sucRevLinha('Valor para cuidados', fin.indicar==='Sim'?('R$ '+(fin.valor||'—')+(fin.bnome?(' → '+fin.bnome):'')):'Não indicado');
+  const D=d.dir||{}; const dirs=[];
+  if(D.juntos)dirs.push('pets juntos'); if(D.alim)dirs.push('rotina alimentar'); if(D.vet)dirs.push('acompanhamento veterinário'); if(D.naodoar)dirs.push('não doar sem aviso'); if(D.medico)dirs.push('orientações médicas');
+  h+=sucRevLinha('Diretivas', dirs.join(', ')||'—');
+  const rev=sucEl('suc-revisao'); if(rev) rev.innerHTML=h;
+}
+
+async function sucSalvar(silent){
+  if(!currentUser){ return false; }
+  sucColeta();
+  const st=sucEl('suc-save-status'); if(st) st.textContent='Salvando…';
+  try{
+    const payload={ tutor_id:currentUser.id, dados:sucState.data, status:sucState.status||'rascunho', atualizado_em:new Date().toISOString() };
+    const { error } = await supabase.from('sucessao_planos').upsert(payload, { onConflict:'tutor_id' });
+    if(error){ if(st) st.textContent=''; if(!silent) alert('Não consegui salvar: '+error.message); return false; }
+    if(st){ st.textContent='Salvo ✓'; setTimeout(()=>{ if(st.textContent==='Salvo ✓') st.textContent=''; }, 2500); }
+    return true;
+  }catch(e){ if(st) st.textContent=''; if(!silent) alert('Não consegui salvar: '+(e.message||e)); return false; }
+}
+
+async function sucGerarPDF(){
+  sucColeta();
+  const t=sucState.data.tutor||{};
+  if(!t.nome || !t.cpf){ alert('Preencha ao menos o seu nome e CPF (Passo 1) para gerar o documento.'); sucGoto(1); return; }
+  if(!sucState.petsSel.length){ alert('Selecione ao menos um pet (Passo 2).'); sucGoto(2); return; }
+  if(!window.jspdf || !window.jspdf.jsPDF){ alert('Não foi possível carregar o gerador de PDF. Verifique sua conexão e tente novamente.'); return; }
+
+  sucState.status='pdf_gerado';
+  await sucSalvar(true);
+
+  const { jsPDF }=window.jspdf;
+  const doc=new jsPDF({ unit:'pt', format:'a4' });
+  const M=48, W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight();
+  const ROXO=[124,47,214]; let y=M;
+
+  function novaPagina(){ doc.addPage(); y=M; }
+  function garante(h){ if(y+h > H-M) novaPagina(); }
+  function titulo(txt){ garante(40); doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(ROXO[0],ROXO[1],ROXO[2]); doc.text(txt.toUpperCase(), M, y); y+=6; doc.setDrawColor(220,210,235); doc.line(M,y,W-M,y); y+=16; doc.setTextColor(40,40,40); }
+  function par(label,val){ if(val==null||val==='') return; doc.setFontSize(9.5); const lab=label?label+': ':''; doc.setFont('helvetica','bold'); const labW=doc.getTextWidth(lab); doc.setFont('helvetica','normal'); const linhas=doc.splitTextToSize(String(val), W-2*M-labW); garante(linhas.length*13+4); doc.setFont('helvetica','bold'); doc.text(lab,M,y); doc.setFont('helvetica','normal'); doc.text(linhas, M+labW, y); y+=linhas.length*13+3; }
+  function bloco(txt){ doc.setFont('helvetica','normal'); doc.setFontSize(9.5); const linhas=doc.splitTextToSize(String(txt), W-2*M); linhas.forEach(l=>{ garante(14); doc.text(l,M,y); y+=13; }); y+=4; }
+  function espaco(h){ y+=(h||10); }
+
+  // CAPA
+  doc.setFont('helvetica','bold'); doc.setTextColor(ROXO[0],ROXO[1],ROXO[2]); doc.setFontSize(22);
+  doc.text('Patinha Viva', M, y+10); y+=36;
+  doc.setTextColor(40,40,40); doc.setFontSize(18);
+  doc.text('Plano de Continuidade dos', M, y); y+=22; doc.text('Cuidados do Pet', M, y); y+=26;
+  doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(110,110,110);
+  doc.text('Diretivas de Cuidado Animal Pós-Falecimento', M, y); y+=15;
+  doc.text('Documento gerado em '+(new Date()).toLocaleDateString('pt-BR'), M, y); y+=22;
+  doc.setTextColor(40,40,40);
+
+  // AVISO
+  const avisoTxt='Este documento possui finalidade organizacional, afetiva e informativa. Não constitui testamento, escritura pública, instrumento sucessório ou ato jurídico formal, nem transfere bens ou herança. Conforme a legislação brasileira, animais de estimação não recebem herança diretamente.';
+  doc.setFillColor(245,240,252); doc.setDrawColor(210,195,235); doc.setFontSize(8.5);
+  const al=doc.splitTextToSize(avisoTxt, W-2*M-20); const boxH=al.length*11+18;
+  doc.roundedRect(M,y,W-2*M,boxH,6,6,'FD'); doc.setTextColor(90,70,120);
+  doc.text(al, M+10, y+14); y+=boxH+18; doc.setTextColor(40,40,40);
+
+  // TUTOR
+  titulo('Identificação do Tutor');
+  par('Nome', t.nome); par('CPF', t.cpf);
+  if(t.nasc) par('Nascimento', sucDataBR(t.nasc));
+  par('Estado civil', t.civil); par('Profissão', t.prof);
+  par('Telefone', t.tel); par('E-mail', t.email);
+  par('Endereço', [t.end, t.cidade&&(t.cidade+(t.uf?'/'+t.uf:'')), t.cep&&('CEP '+t.cep)].filter(Boolean).join(' — ')); espaco();
+
+  // PETS
+  const petsData=sucState.data.pets||{};
+  titulo('Identificação dos Pets');
+  sucState.petsSel.forEach(pid=>{
+    const p=(userPets||[]).find(x=>x.id===pid)||{}; const pd=petsData[pid]||{};
+    garante(20); doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text(String(p.nome||pd._nome||'Pet'), M, y); y+=15; doc.setFont('helvetica','normal');
+    par('Espécie/Raça', [sucEspecie(p.especie||pd._especie), p.raca||pd._raca].filter(Boolean).join(' · '));
+    par('Sexo', sucSexo(p.sexo||pd._sexo));
+    if(p.data_nascimento||pd._nasc) par('Idade', calcIdade(p.data_nascimento||pd._nasc));
+    par('Cor/Pelagem', pd.cor); par('Microchip', pd.microchip); par('Castrado', pd.castrado); espaco(6);
+  });
+
+  // SAÚDE & ROTINA
+  titulo('Informações de Saúde e Rotina');
+  let temSaude=false;
+  sucState.petsSel.forEach(pid=>{
+    const p=(userPets||[]).find(x=>x.id===pid)||{}; const pd=petsData[pid]||{};
+    const algo=['vet','clinica','telclinica','doencas','medicamentos','alergias','vacinas','racao','racaoqtd','rotalim','rotpasseio','rothigiene','necessidades','comportamentos','restricoes'].some(k=>pd[k]);
+    if(!algo) return; temSaude=true;
+    garante(18); doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.text(String(p.nome||pd._nome||'Pet'), M, y); y+=14; doc.setFont('helvetica','normal');
+    par('Veterinário', pd.vet); par('Clínica', [pd.clinica, pd.telclinica].filter(Boolean).join(' — '));
+    par('Doenças', pd.doencas); par('Medicamentos', pd.medicamentos); par('Alergias', pd.alergias); par('Vacinas', pd.vacinas);
+    par('Alimentação', [pd.racao, pd.racaoqtd, pd.rotalim].filter(Boolean).join(' · '));
+    par('Passeios', pd.rotpasseio); par('Higiene', pd.rothigiene);
+    par('Necessidades especiais', pd.necessidades); par('Comportamentos/medos', pd.comportamentos); par('Restrições', pd.restricoes); espaco(6);
+  });
+  if(!temSaude) bloco('Sem informações de saúde registradas.');
+
+  // CUIDADORES
+  const cp=sucState.data.cp||{}, cs=sucState.data.cs||{};
+  if(cp.nome||cp.cpf){ titulo('Futuro Cuidador Principal'); par('Nome',cp.nome); par('CPF',cp.cpf); par('Telefone',cp.tel); par('E-mail',cp.email); par('Endereço',cp.end); par('Relacionamento',cp.rel); par('Já informado',cp.informada); par('Concorda previamente',cp.concorda); espaco(); }
+  if(cs.nome||cs.cpf){ titulo('Futuro Cuidador Substituto'); par('Nome',cs.nome); par('CPF',cs.cpf); par('Telefone',cs.tel); par('E-mail',cs.email); par('Endereço',cs.end); par('Relacionamento',cs.rel); par('Já informado',cs.informada); par('Concorda previamente',cs.concorda); espaco(); }
+
+  // EMERGÊNCIA
+  const emg=(sucState.data.emg||[]).filter(e=>e&&(e.nome||e.tel));
+  if(emg.length){ titulo('Contatos de Emergência'); emg.forEach(e=>par(e.nome||'Contato', e.tel)); espaco(); }
+
+  // FINANCEIRO
+  const fin=sucState.data.fin||{};
+  if(fin.indicar==='Sim' && (fin.valor||fin.bnome)){
+    titulo('Recurso Financeiro Indicado');
+    bloco('O tutor manifesta o desejo de que o valor de R$ '+(fin.valor||'____')+' seja utilizado para auxiliar nos cuidados, bem-estar, alimentação, saúde e manutenção dos animais descritos neste documento.');
+    if(fin.bnome) par('Beneficiário indicado', [fin.bnome, fin.bcpf&&('CPF '+fin.bcpf), fin.btel].filter(Boolean).join(' · '));
+    if((fin.finalidades||[]).length) par('Finalidade', fin.finalidades.join(', '));
+    if(fin.obs) par('Observações', fin.obs);
+    bloco('O Patinha Viva não retém, não administra e não garante este valor; trata-se do registro da vontade do tutor.'); espaco();
+  }
+
+  // DIRETIVAS
+  titulo('Diretivas de Cuidado');
+  const D=sucState.data.dir||{}; const dl=[];
+  if(D.juntos)dl.push('Os pets devem permanecer juntos.');
+  if(D.alim)dl.push('Manter a rotina alimentar registrada.');
+  if(D.vet)dl.push('Manter o acompanhamento veterinário.');
+  if(D.naodoar)dl.push('Não doar sem contato prévio ao cuidador substituto.');
+  if(D.medico)dl.push('Respeitar as orientações médicas registradas.');
+  if(!dl.length && !D.outras) bloco('Sem diretivas específicas registradas.');
+  dl.forEach(x=>bloco('• '+x));
+  if(D.outras){ par('Outras instruções', D.outras); }
+  espaco();
+
+  // DECLARAÇÃO FINAL
+  titulo('Declaração Final');
+  bloco('Este documento representa a manifestação de vontade do tutor quanto à continuidade dos cuidados dos animais identificados neste instrumento, servindo como referência organizacional, afetiva e informativa para familiares, cuidadores e interessados. Não constitui testamento, escritura pública ou instrumento sucessório.');
+  espaco(18); garante(70);
+  doc.text('Local e data: ____________________________________', M, y); y+=34;
+  doc.text('Assinatura: _____________________________________', M, y); y+=15;
+  doc.setFontSize(9); doc.setTextColor(110,110,110); doc.text(String(t.nome||''), M, y);
+
+  // RODAPÉ
+  const tot=doc.internal.getNumberOfPages();
+  for(let i=1;i<=tot;i++){ doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150,150,150); doc.text('Patinha Viva — Plano de Continuidade dos Cuidados do Pet · pág. '+i+'/'+tot, M, H-24); }
+
+  const fname='Plano-Continuidade-'+String(t.nome||'pet').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\w]+/g,'-').replace(/^-+|-+$/g,'')+'.pdf';
+  doc.save(fname);
+}
 </script>
 </body>
 </html>
