@@ -705,10 +705,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
       <!-- Aviso institucional (sempre visível) -->
       <div class="card" style="max-width:860px;margin:0 auto 18px;border-left:4px solid var(--violet);background:rgba(124,47,214,.05)">
         <div style="font-size:.84rem;color:var(--ink-mid);line-height:1.6">
-          ⚠️ <b>Importante.</b> Este recurso possui finalidade <b>organizacional, afetiva e informativa</b>.
-          O documento gerado <b>não constitui testamento, escritura pública, instrumento sucessório ou ato jurídico formal</b>,
-          nem transfere bens ou herança. Ele organiza a sua vontade sobre a continuidade dos cuidados do seu pet
-          para orientar familiares e o futuro cuidador. Para validade jurídica, procure um cartório de notas ou profissional habilitado.
+          🔒 <b>Seus dados estão protegidos.</b> As informações deste planejamento são <b>sensíveis</b> (incluem CPF e contatos) e ficam visíveis <b>apenas para você</b> — nem mesmo co-tutores da sua família têm acesso.
+          Ao informar dados de terceiros (cuidadores, beneficiário), você declara ter ciência e autorização dessas pessoas.
+          Ao final, consulte o <b>Guia de Uso dos Documentos</b> para saber como dar validade ao seu testamento.
         </div>
       </div>
 
@@ -866,10 +865,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
             </div>
 
             <div style="border:1.5px solid rgba(124,47,214,.18);border-radius:14px;padding:16px">
-              <div style="font-weight:600;color:var(--ink);margin-bottom:4px">⚖ Minuta de Testamento Particular <span style="font-size:.7rem;background:rgba(124,47,214,.1);color:var(--violet);padding:2px 8px;border-radius:100px;font-weight:700">RASCUNHO</span></div>
-              <div style="font-size:.8rem;color:var(--ink-soft);line-height:1.6;margin-bottom:10px">Minuta de testamento focada na continuidade dos cuidados do pet (guardião e recurso destinado). Inclui orientações para validação.</div>
-              <div style="background:rgba(124,47,214,.06);border-radius:10px;padding:10px 12px;font-size:.76rem;color:var(--ink-mid);line-height:1.5;margin-bottom:12px">⚠️ É um <b>rascunho</b> e <b>não é um testamento válido</b> por si só. Para ter efeito, precisa ser revisado por um(a) advogado(a) e formalizado (3 testemunhas ou cartório). O Patinha Viva não presta consultoria jurídica.</div>
-              <button class="btn btn-secondary btn-sm" onclick="sucGerarMinuta()">Gerar Minuta (PDF)</button>
+              <div style="font-weight:600;color:var(--ink);margin-bottom:4px">⚖ Testamento Particular</div>
+              <div style="font-size:.8rem;color:var(--ink-soft);line-height:1.6;margin-bottom:12px">Testamento focado na continuidade dos cuidados do pet: guardião, cuidador substituto, recurso destinado e diretivas. Veja o <b>Guia de Uso</b> para validá-lo.</div>
+              <button class="btn btn-secondary btn-sm" onclick="sucGerarTestamento()">Gerar Testamento (PDF)</button>
+            </div>
+
+            <div style="border:1.5px solid rgba(0,180,170,.25);border-radius:14px;padding:16px">
+              <div style="font-weight:600;color:var(--ink);margin-bottom:4px">📘 Guia de Uso dos Documentos</div>
+              <div style="font-size:.8rem;color:var(--ink-soft);line-height:1.6;margin-bottom:12px">Passo a passo de como usar o Plano e o Testamento, como dar validade (advogado e 3 testemunhas ou cartório), onde guardar e como manter tudo atualizado.</div>
+              <button class="btn btn-secondary btn-sm" onclick="sucGerarGuia()">Gerar Guia (PDF)</button>
             </div>
           </div>
         </div>
@@ -3424,251 +3428,285 @@ async function sucSalvar(silent){
   }catch(e){ if(st) st.textContent=''; if(!silent) alert('Não consegui salvar: '+(e.message||e)); return false; }
 }
 
-function sucGerarPlano(){ return sucGerarDocumento('plano'); }
-function sucGerarMinuta(){ return sucGerarDocumento('minuta'); }
+// ====== KIT DE PDF (timbre + tipografia oficial, reutilizado pelos 3 documentos) ======
+function sucNomeArq(prefix, nome){ return prefix+String(nome||'pet').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\w]+/g,'-').replace(/^-+|-+$/g,'')+'.pdf'; }
 
-async function sucGerarDocumento(kind){
-  sucColeta();
-  const t=sucState.data.tutor||{};
-  if(!t.nome || !t.cpf){ alert('Preencha ao menos o seu nome e CPF (Passo 1) para gerar o documento.'); sucGoto(1); return; }
-  if(!sucState.petsSel.length){ alert('Selecione ao menos um pet (Passo 2).'); sucGoto(2); return; }
-  const cp=sucState.data.cp||{}, cs=sucState.data.cs||{}, fin=sucState.data.fin||{};
-  if(kind==='minuta' && !cp.nome){
-    if(!confirm('Você ainda não indicou o cuidador principal (Passo 3). A minuta ficará com esse campo em branco para preencher à mão. Gerar mesmo assim?')){ sucGoto(3); return; }
-  }
-  if(!window.jspdf || !window.jspdf.jsPDF){ alert('Não foi possível carregar o gerador de PDF. Verifique sua conexão e tente novamente.'); return; }
-
-  sucState.status='pdf_gerado'; await sucSalvar(true);
-
+function sucPdfKit(tituloDoc){
   const { jsPDF }=window.jspdf;
   const doc=new jsPDF({ unit:'pt', format:'a4', compress:true });
   const W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight();
   const ML=64, MR=64, MB=64;
   const ACCENT=[214,51,132], INK=[34,34,42], SOFT=[120,120,132], RULE=[208,198,214];
-  const tituloDoc=(kind==='plano')?'Plano de Continuidade dos Cuidados do Pet':'Minuta de Testamento Particular';
   const meses=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
-  const dataExt=(d)=> d.getDate()+' de '+meses[d.getMonth()]+' de '+d.getFullYear();
-  let y=0;
+  const S={ y:0 };
   const cor=(c)=>doc.setTextColor(c[0],c[1],c[2]);
+  const dataExt=(d)=> d.getDate()+' de '+meses[d.getMonth()]+' de '+d.getFullYear();
 
   function logoCentro(cx, topY, w){
     try{ if(SUC_LOGO && SUC_LOGO.indexOf('data:image')===0){ const h=w/SUC_LOGO_RATIO; doc.addImage(SUC_LOGO,'PNG', cx-w/2, topY, w, h); return h; } }catch(e){}
     doc.setFont('times','bold'); doc.setFontSize(18); cor(ACCENT); doc.text('Patinha Viva', cx, topY+16, {align:'center'}); cor(INK); return 22;
   }
   function cabecalho(){
-    if(kind==='minuta'){ doc.setFont('helvetica','bold'); doc.setFontSize(74); cor([242,231,240]); doc.text('RASCUNHO', W/2, H/2+12, {align:'center', angle:38}); cor(INK); }
     const w=104, h=logoCentro(W/2, 30, w), ly=30+h+8;
     doc.setDrawColor(RULE[0],RULE[1],RULE[2]); doc.setLineWidth(0.6); doc.line(ML, ly, W-MR, ly); doc.setLineWidth(0.2);
-    y=ly+24;
+    S.y=ly+24; doc.setFont('times','normal'); doc.setFontSize(11); cor(INK);
   }
   function novaPagina(){ doc.addPage(); cabecalho(); }
-  function garante(h){ if(y+h > H-MB) novaPagina(); }
+  function garante(hh){ if(S.y+hh > H-MB) novaPagina(); }
 
   function paragrafo(txt, o){
-    o=o||{}; const size=o.size||11; doc.setFontSize(size);
-    doc.setFont('times', o.bold?'bold':(o.italic?'italic':'normal')); cor(o.color||INK);
-    const maxW=W-ML-MR, lines=doc.splitTextToSize(String(txt), maxW), lh=o.lh||(size*1.5);
-    lines.forEach((ln,i)=>{ garante(lh); const last=(i===lines.length-1);
-      if(o.center){ doc.text(ln, W/2, y, {align:'center'}); }
-      else if(o.justify && !last){ doc.text(ln, ML, y, {maxWidth:maxW, align:'justify'}); }
-      else { doc.text(ln, ML, y); }
-      y+=lh; });
-    y += (o.after!=null?o.after:size*0.55); cor(INK);
+    o=o||{}; const size=o.size||11; const style=o.bold?'bold':(o.italic?'italic':'normal');
+    const maxW=W-ML-MR;
+    doc.setFontSize(size); doc.setFont('times', style);
+    const lines=doc.splitTextToSize(String(txt), maxW), lh=o.lh||(size*1.5);
+    lines.forEach((ln,i)=>{
+      garante(lh);
+      doc.setFontSize(size); doc.setFont('times', style); cor(o.color||INK); // re-afirma após eventual quebra de página
+      const last=(i===lines.length-1);
+      if(o.center){ doc.text(ln, W/2, S.y, {align:'center'}); }
+      else if(o.justify && !last){ doc.text(ln, ML, S.y, {maxWidth:maxW, align:'justify'}); }
+      else { doc.text(ln, ML, S.y); }
+      S.y+=lh;
+    });
+    S.y += (o.after!=null?o.after:size*0.55); cor(INK);
   }
   function secao(titulo, num){
-    y+=4; garante(40); doc.setFont('times','bold'); doc.setFontSize(12.5); cor(INK);
-    doc.text(((num!=null)?num+'.  ':'')+String(titulo).toUpperCase(), ML, y); y+=6;
-    doc.setDrawColor(ACCENT[0],ACCENT[1],ACCENT[2]); doc.setLineWidth(1); doc.line(ML,y,ML+34,y);
-    doc.setDrawColor(RULE[0],RULE[1],RULE[2]); doc.setLineWidth(0.5); doc.line(ML+34,y,W-MR,y); doc.setLineWidth(0.2);
-    y+=16; cor(INK);
+    S.y+=4; garante(40); doc.setFont('times','bold'); doc.setFontSize(12.5); cor(INK);
+    doc.text(((num!=null)?num+'.  ':'')+String(titulo).toUpperCase(), ML, S.y); S.y+=6;
+    doc.setDrawColor(ACCENT[0],ACCENT[1],ACCENT[2]); doc.setLineWidth(1); doc.line(ML,S.y,ML+34,S.y);
+    doc.setDrawColor(RULE[0],RULE[1],RULE[2]); doc.setLineWidth(0.5); doc.line(ML+34,S.y,W-MR,S.y); doc.setLineWidth(0.2);
+    S.y+=16; cor(INK);
   }
   function campo(label,val){
     if(val==null||val==='') return;
-    doc.setFontSize(10.5); const lab=label?label+': ':'';
-    doc.setFont('times','bold'); const labW=doc.getTextWidth(lab);
+    const lab=label?label+': ':'';
+    doc.setFontSize(10.5); doc.setFont('times','bold'); const labW=doc.getTextWidth(lab);
     doc.setFont('times','normal'); const lines=doc.splitTextToSize(String(val), W-ML-MR-labW);
-    garante(lines.length*14+3); cor(INK);
-    doc.setFont('times','bold'); doc.text(lab, ML, y);
-    doc.setFont('times','normal'); doc.text(lines, ML+labW, y); y+=lines.length*14+3;
+    garante(lines.length*14+3);
+    doc.setFontSize(10.5); cor(INK);
+    doc.setFont('times','bold'); doc.text(lab, ML, S.y);
+    doc.setFont('times','normal'); doc.text(lines, ML+labW, S.y); S.y+=lines.length*14+3;
   }
-  function subTitulo(txt){ garante(20); doc.setFont('times','bold'); doc.setFontSize(11.5); cor(ACCENT); doc.text(String(txt), ML, y); y+=15; cor(INK); }
-  function espaco(h){ y+=(h||10); }
+  function subTitulo(txt){ garante(20); doc.setFont('times','bold'); doc.setFontSize(11.5); cor(ACCENT); doc.text(String(txt), ML, S.y); S.y+=15; cor(INK); }
+  function espaco(h){ S.y+=(h||10); }
   function assinatura(nome, papel){
-    garante(46); y+=16; doc.setDrawColor(90,90,100); doc.setLineWidth(0.6); doc.line(ML, y, ML+300, y); doc.setLineWidth(0.2); y+=13;
-    doc.setFont('times','normal'); doc.setFontSize(10); cor(INK); if(nome) doc.text(String(nome), ML, y);
-    if(papel){ doc.setFont('times','italic'); cor(SOFT); doc.text(String(papel), ML, y+(nome?12:0)); }
-    y += (nome&&papel?18:13); cor(INK);
+    garante(46); S.y+=16; doc.setDrawColor(90,90,100); doc.setLineWidth(0.6); doc.line(ML, S.y, ML+300, S.y); doc.setLineWidth(0.2); S.y+=13;
+    doc.setFont('times','normal'); doc.setFontSize(10); cor(INK); if(nome) doc.text(String(nome), ML, S.y);
+    if(papel){ doc.setFont('times','italic'); cor(SOFT); doc.text(String(papel), ML, S.y+(nome?12:0)); }
+    S.y += (nome&&papel?18:13); cor(INK);
+  }
+  function linhaTestemunha(rotulo){
+    garante(40); S.y+=12; doc.setDrawColor(90,90,100); doc.setLineWidth(0.6); doc.line(ML, S.y, ML+300, S.y); doc.setLineWidth(0.2); S.y+=12;
+    doc.setFont('times','italic'); doc.setFontSize(9.5); cor(SOFT); doc.text(rotulo, ML, S.y); S.y+=6; cor(INK);
+  }
+  function capa(subtitulo, tutorNome){
+    doc.setDrawColor(ACCENT[0],ACCENT[1],ACCENT[2]); doc.setLineWidth(1.4); doc.line(ML, 64, W-MR, 64); doc.setLineWidth(0.2);
+    logoCentro(W/2, 132, 230);
+    doc.setFont('times','bold'); doc.setFontSize(23); cor(INK);
+    const capaTit=doc.splitTextToSize(tituloDoc.toUpperCase(), W-ML-MR);
+    let cy=320; capaTit.forEach(l=>{ doc.text(l, W/2, cy, {align:'center'}); cy+=28; });
+    if(subtitulo){ doc.setFont('times','italic'); doc.setFontSize(12.5); cor(SOFT); cy+=6; doc.text(doc.splitTextToSize(subtitulo, W-ML-MR), W/2, cy, {align:'center'}); cy+=32; }
+    doc.setFont('times','normal'); doc.setFontSize(11); cor(INK);
+    if(tutorNome){ doc.text('Tutor(a): '+tutorNome, W/2, cy, {align:'center'}); cy+=18; }
+    doc.setFontSize(10.5); cor(SOFT); doc.text('Documento gerado em '+dataExt(new Date()), W/2, cy, {align:'center'});
+    doc.setDrawColor(ACCENT[0],ACCENT[1],ACCENT[2]); doc.setLineWidth(1.4); doc.line(ML, H-72, W-MR, H-72); doc.setLineWidth(0.2);
+    doc.setFont('times','italic'); doc.setFontSize(9.5); cor(SOFT);
+    doc.text('Patinha Viva — memória, amor e cuidado que duram para sempre', W/2, H-54, {align:'center'});
+    novaPagina();
+  }
+  function finalizar(fname){
+    const tot=doc.internal.getNumberOfPages();
+    for(let i=2;i<=tot;i++){ doc.setPage(i); doc.setFont('times','italic'); doc.setFontSize(8.5); cor(SOFT);
+      doc.text(tituloDoc+'  ·  Patinha Viva  ·  patinhaviva.com.br', ML, H-30);
+      doc.text('Página '+(i-1)+' de '+(tot-1), W-MR, H-30, {align:'right'}); }
+    doc.save(fname);
+  }
+  return { doc, W, H, ML, MR, ACCENT, INK, SOFT, RULE, S, cor, dataExt, paragrafo, secao, campo, subTitulo, espaco, assinatura, linhaTestemunha, garante, capa, finalizar };
+}
+
+// ====== DOCUMENTO 1 — PLANO DE CONTINUIDADE ======
+async function sucGerarPlano(){
+  sucColeta(); const t=sucState.data.tutor||{};
+  if(!t.nome || !t.cpf){ alert('Preencha ao menos o seu nome e CPF (Passo 1) para gerar o documento.'); sucGoto(1); return; }
+  if(!sucState.petsSel.length){ alert('Selecione ao menos um pet (Passo 2).'); sucGoto(2); return; }
+  if(!window.jspdf || !window.jspdf.jsPDF){ alert('Não foi possível carregar o gerador de PDF. Verifique sua conexão e tente novamente.'); return; }
+  sucState.status='pdf_gerado'; await sucSalvar(true);
+
+  const K=sucPdfKit('Plano de Continuidade dos Cuidados do Pet');
+  const { paragrafo, secao, campo, subTitulo, espaco, assinatura } = K;
+  K.capa('Diretivas de Cuidado Animal Pós-Falecimento', t.nome);
+  const petsData=sucState.data.pets||{}; const cp=sucState.data.cp||{}, cs=sucState.data.cs||{}, fin=sucState.data.fin||{};
+
+  secao('Apresentação');
+  paragrafo('Este Plano de Continuidade dos Cuidados foi elaborado para reunir, de forma organizada e respeitosa, todas as informações necessárias para que, na eventual ausência do tutor, os animais sob a sua responsabilidade continuem recebendo o mesmo cuidado, afeto e atenção de sempre.', {justify:true});
+  paragrafo('Mais do que um conjunto de dados, este documento é a expressão da vontade do tutor e um gesto de amor e responsabilidade para com aqueles que dele dependem. Serve como guia prático para o futuro cuidador e como referência afetiva e informativa para familiares e demais interessados.', {justify:true});
+
+  let n=1;
+  secao('Identificação do Tutor', n++);
+  campo('Nome', t.nome); campo('CPF', t.cpf);
+  if(t.nasc) campo('Data de nascimento', sucDataBR(t.nasc));
+  campo('Estado civil', t.civil); campo('Nacionalidade', t.nac); campo('Profissão', t.prof);
+  campo('Telefone', t.tel); campo('E-mail', t.email);
+  campo('Endereço', [t.end, t.cidade&&(t.cidade+(t.uf?'/'+t.uf:'')), t.cep&&('CEP '+t.cep)].filter(Boolean).join(' — ')); espaco(6);
+
+  secao('Identificação dos Animais', n++);
+  sucState.petsSel.forEach(pid=>{
+    const p=(userPets||[]).find(x=>x.id===pid)||{}, pd=petsData[pid]||{};
+    subTitulo(p.nome||pd._nome||'Pet');
+    campo('Espécie / Raça', [sucEspecie(p.especie||pd._especie), p.raca||pd._raca].filter(Boolean).join(' · '));
+    campo('Sexo', sucSexo(p.sexo||pd._sexo));
+    if(p.data_nascimento||pd._nasc) campo('Idade', calcIdade(p.data_nascimento||pd._nasc));
+    campo('Cor / Pelagem', pd.cor); campo('Microchip', pd.microchip); campo('Castrado', pd.castrado); espaco(6);
+  });
+
+  secao('Saúde e Rotina de Cuidados', n++);
+  let algumSaude=false;
+  sucState.petsSel.forEach(pid=>{
+    const p=(userPets||[]).find(x=>x.id===pid)||{}, pd=petsData[pid]||{};
+    const algo=['vet','clinica','telclinica','doencas','medicamentos','alergias','vacinas','racao','racaoqtd','rotalim','rotpasseio','rothigiene','necessidades','comportamentos','restricoes'].some(k=>pd[k]);
+    if(!algo) return; algumSaude=true;
+    subTitulo(p.nome||pd._nome||'Pet');
+    campo('Veterinário', pd.vet); campo('Clínica', [pd.clinica, pd.telclinica].filter(Boolean).join(' — '));
+    campo('Doenças conhecidas', pd.doencas); campo('Medicamentos contínuos', pd.medicamentos);
+    campo('Alergias', pd.alergias); campo('Vacinas importantes', pd.vacinas);
+    campo('Alimentação', [pd.racao, pd.racaoqtd, pd.rotalim].filter(Boolean).join(' · '));
+    campo('Rotina de passeios', pd.rotpasseio); campo('Rotina de higiene', pd.rothigiene);
+    campo('Necessidades especiais', pd.necessidades); campo('Comportamentos / medos', pd.comportamentos);
+    campo('Restrições', pd.restricoes); espaco(6);
+  });
+  if(!algumSaude) paragrafo('Sem informações de saúde registradas até o momento.', {italic:true, color:K.SOFT});
+
+  secao('Futuro Cuidador Principal', n++);
+  if(cp.nome||cp.cpf){ campo('Nome', cp.nome); campo('CPF', cp.cpf); campo('Telefone', cp.tel); campo('E-mail', cp.email); campo('Endereço', cp.end); campo('Relacionamento', cp.rel); campo('Já informado(a)', cp.informada); campo('Concorda previamente', cp.concorda); }
+  else paragrafo('Não indicado.', {italic:true, color:K.SOFT});
+  espaco(6);
+
+  secao('Futuro Cuidador Substituto', n++);
+  if(cs.nome||cs.cpf){ campo('Nome', cs.nome); campo('CPF', cs.cpf); campo('Telefone', cs.tel); campo('E-mail', cs.email); campo('Endereço', cs.end); campo('Relacionamento', cs.rel); campo('Já informado(a)', cs.informada); campo('Concorda previamente', cs.concorda); }
+  else paragrafo('Não indicado.', {italic:true, color:K.SOFT});
+  espaco(6);
+
+  const emg=(sucState.data.emg||[]).filter(e=>e&&(e.nome||e.tel));
+  if(emg.length){ secao('Contatos de Emergência', n++); emg.forEach(e=>campo(e.nome||'Contato', e.tel)); espaco(6); }
+
+  if(fin.indicar==='Sim' && (fin.valor||fin.bnome)){
+    secao('Recurso Destinado aos Cuidados', n++);
+    paragrafo('O tutor manifesta o desejo de que o valor de R$ '+(fin.valor||'____')+' seja utilizado para auxiliar nos cuidados, bem-estar, alimentação, saúde e manutenção dos animais descritos neste documento.', {justify:true});
+    if(fin.bnome) campo('Beneficiário indicado', [fin.bnome, fin.bcpf&&('CPF '+fin.bcpf), fin.btel].filter(Boolean).join(' · '));
+    if((fin.finalidades||[]).length) campo('Finalidade', fin.finalidades.join(', '));
+    if(fin.obs) campo('Observações', fin.obs);
+    paragrafo('O Patinha Viva não retém, não administra e não garante este valor; trata-se do registro da vontade do tutor.', {italic:true, size:9.5, color:K.SOFT, after:6});
   }
 
-  // ===== CAPA =====
-  doc.setDrawColor(ACCENT[0],ACCENT[1],ACCENT[2]); doc.setLineWidth(1.4); doc.line(ML, 64, W-MR, 64); doc.setLineWidth(0.2);
-  logoCentro(W/2, 132, 230);
-  doc.setFont('times','bold'); doc.setFontSize(23); cor(INK);
-  const capaTit=doc.splitTextToSize(tituloDoc.toUpperCase(), W-ML-MR);
-  let cy=320; capaTit.forEach(l=>{ doc.text(l, W/2, cy, {align:'center'}); cy+=28; });
-  doc.setFont('times','italic'); doc.setFontSize(12.5); cor(SOFT); cy+=6;
-  doc.text('Diretivas de Cuidado Animal Pós-Falecimento', W/2, cy, {align:'center'}); cy+=32;
-  doc.setFont('times','normal'); doc.setFontSize(11); cor(INK);
-  if(t.nome){ doc.text('Tutor(a): '+t.nome, W/2, cy, {align:'center'}); cy+=18; }
-  doc.setFontSize(10.5); cor(SOFT); doc.text('Documento gerado em '+dataExt(new Date()), W/2, cy, {align:'center'});
-  doc.setDrawColor(ACCENT[0],ACCENT[1],ACCENT[2]); doc.setLineWidth(1.4); doc.line(ML, H-72, W-MR, H-72); doc.setLineWidth(0.2);
-  doc.setFont('times','italic'); doc.setFontSize(9.5); cor(SOFT);
-  doc.text('Patinha Viva — memória, amor e cuidado que duram para sempre', W/2, H-54, {align:'center'});
+  secao('Diretivas de Cuidado', n++);
+  const D=sucState.data.dir||{}; const dl=[];
+  if(D.juntos)dl.push('Os animais devem permanecer juntos.');
+  if(D.alim)dl.push('A rotina alimentar deve ser mantida.');
+  if(D.vet)dl.push('O acompanhamento veterinário deve ser mantido.');
+  if(D.naodoar)dl.push('Não devem ser doados sem contato prévio ao cuidador substituto.');
+  if(D.medico)dl.push('As orientações médicas registradas devem ser respeitadas.');
+  if(!dl.length && !D.outras) paragrafo('Sem diretivas específicas registradas.', {italic:true, color:K.SOFT});
+  dl.forEach(x=>paragrafo('•  '+x, {after:2}));
+  if(D.outras){ espaco(2); campo('Outras instruções', D.outras); }
+  espaco(6);
 
-  // ===== CONTEÚDO =====
-  novaPagina();
+  secao('Declaração Final', n++);
+  paragrafo('Declaro que as informações aqui registradas expressam a minha vontade quanto à continuidade dos cuidados dos animais identificados neste documento, servindo como referência organizacional, afetiva e informativa para familiares, cuidadores e demais interessados.', {justify:true});
+  espaco(16); paragrafo('Local e data: ______________________________________________', {after:6});
+  assinatura(t.nome||'', 'Tutor(a)');
+
+  K.finalizar(sucNomeArq('Plano-Continuidade-', t.nome));
+}
+
+// ====== DOCUMENTO 2 — TESTAMENTO PARTICULAR (focado no pet) ======
+async function sucGerarTestamento(){
+  sucColeta(); const t=sucState.data.tutor||{};
+  if(!t.nome || !t.cpf){ alert('Preencha ao menos o seu nome e CPF (Passo 1) para gerar o documento.'); sucGoto(1); return; }
+  if(!sucState.petsSel.length){ alert('Selecione ao menos um pet (Passo 2).'); sucGoto(2); return; }
+  const cp=sucState.data.cp||{}, cs=sucState.data.cs||{}, fin=sucState.data.fin||{};
+  if(!cp.nome){ if(!confirm('Você ainda não indicou o cuidador principal (Passo 3). O documento ficará com esse campo em branco para preencher à mão. Gerar mesmo assim?')){ sucGoto(3); return; } }
+  if(!window.jspdf || !window.jspdf.jsPDF){ alert('Não foi possível carregar o gerador de PDF. Verifique sua conexão e tente novamente.'); return; }
+  sucState.status='pdf_gerado'; await sucSalvar(true);
+
+  const K=sucPdfKit('Testamento Particular');
+  const { paragrafo, secao, espaco, assinatura, subTitulo, linhaTestemunha } = K;
+  K.capa('Disposições sobre a continuidade dos cuidados dos animais', t.nome);
   const petsData=sucState.data.pets||{};
 
-  if(kind==='plano'){
-    secao('Apresentação');
-    paragrafo('Este Plano de Continuidade dos Cuidados foi elaborado para reunir, de forma organizada e respeitosa, todas as informações necessárias para que, na eventual ausência do tutor, os animais sob a sua responsabilidade continuem recebendo o mesmo cuidado, afeto e atenção de sempre.', {justify:true});
-    paragrafo('Mais do que um conjunto de dados, este documento é a expressão da vontade do tutor e um gesto de amor e responsabilidade para com aqueles que dele dependem. Serve como guia prático para o futuro cuidador e como referência afetiva e informativa para familiares e demais interessados.', {justify:true});
-    paragrafo('Possui finalidade organizacional, afetiva e informativa. Não constitui testamento, escritura pública, instrumento sucessório ou ato jurídico formal, nem transfere bens ou herança.', {italic:true, size:9.5, color:SOFT, justify:true, after:6});
+  secao('Testamento Particular');
+  const qual=[t.nome, t.nac||'brasileiro(a)', t.civil, t.prof, t.cpf?('inscrito(a) no CPF sob o nº '+t.cpf):'', (t.end||t.cidade)?('residente e domiciliado(a) em '+[t.end, t.cidade&&(t.cidade+(t.uf?'/'+t.uf:'')), t.cep&&('CEP '+t.cep)].filter(Boolean).join(', ')):''].filter(Boolean).join(', ');
+  paragrafo('Eu, '+qual+', no pleno gozo das minhas faculdades mentais e no uso da minha livre e consciente vontade, sem qualquer coação, resolvo, por meio deste testamento particular, dispor sobre a continuidade dos cuidados dos animais de estimação que se encontram sob a minha responsabilidade, nos termos das cláusulas seguintes.', {justify:true});
+  paragrafo('As disposições deste instrumento limitam-se aos cuidados dos animais aqui identificados e às quantias eventualmente a eles destinadas, não alcançando nem revogando quaisquer outras disposições de última vontade relativas aos demais bens e direitos do meu patrimônio.', {justify:true});
 
-    let n=1;
-    secao('Identificação do Tutor', n++);
-    campo('Nome', t.nome); campo('CPF', t.cpf);
-    if(t.nasc) campo('Data de nascimento', sucDataBR(t.nasc));
-    campo('Estado civil', t.civil); campo('Nacionalidade', t.nac); campo('Profissão', t.prof);
-    campo('Telefone', t.tel); campo('E-mail', t.email);
-    campo('Endereço', [t.end, t.cidade&&(t.cidade+(t.uf?'/'+t.uf:'')), t.cep&&('CEP '+t.cep)].filter(Boolean).join(' — ')); espaco(6);
+  const ord=['PRIMEIRA','SEGUNDA','TERCEIRA','QUARTA','QUINTA','SEXTA','SÉTIMA']; let ci=0;
+  const nomesPets=sucState.petsSel.map(pid=>{ const p=(userPets||[]).find(x=>x.id===pid)||{}, pd=petsData[pid]||{}; const nm=p.nome||pd._nome||'animal', sp=sucEspecie(p.especie||pd._especie); return sp?(nm+' ('+sp.toLowerCase()+')'):nm; }).filter(Boolean);
 
-    secao('Identificação dos Animais', n++);
-    sucState.petsSel.forEach(pid=>{
-      const p=(userPets||[]).find(x=>x.id===pid)||{}, pd=petsData[pid]||{};
-      subTitulo(p.nome||pd._nome||'Pet');
-      campo('Espécie / Raça', [sucEspecie(p.especie||pd._especie), p.raca||pd._raca].filter(Boolean).join(' · '));
-      campo('Sexo', sucSexo(p.sexo||pd._sexo));
-      if(p.data_nascimento||pd._nasc) campo('Idade', calcIdade(p.data_nascimento||pd._nasc));
-      campo('Cor / Pelagem', pd.cor); campo('Microchip', pd.microchip); campo('Castrado', pd.castrado); espaco(6);
-    });
-
-    secao('Saúde e Rotina de Cuidados', n++);
-    let algumSaude=false;
-    sucState.petsSel.forEach(pid=>{
-      const p=(userPets||[]).find(x=>x.id===pid)||{}, pd=petsData[pid]||{};
-      const algo=['vet','clinica','telclinica','doencas','medicamentos','alergias','vacinas','racao','racaoqtd','rotalim','rotpasseio','rothigiene','necessidades','comportamentos','restricoes'].some(k=>pd[k]);
-      if(!algo) return; algumSaude=true;
-      subTitulo(p.nome||pd._nome||'Pet');
-      campo('Veterinário', pd.vet); campo('Clínica', [pd.clinica, pd.telclinica].filter(Boolean).join(' — '));
-      campo('Doenças conhecidas', pd.doencas); campo('Medicamentos contínuos', pd.medicamentos);
-      campo('Alergias', pd.alergias); campo('Vacinas importantes', pd.vacinas);
-      campo('Alimentação', [pd.racao, pd.racaoqtd, pd.rotalim].filter(Boolean).join(' · '));
-      campo('Rotina de passeios', pd.rotpasseio); campo('Rotina de higiene', pd.rothigiene);
-      campo('Necessidades especiais', pd.necessidades); campo('Comportamentos / medos', pd.comportamentos);
-      campo('Restrições', pd.restricoes); espaco(6);
-    });
-    if(!algumSaude) paragrafo('Sem informações de saúde registradas até o momento.', {italic:true, color:SOFT});
-
-    secao('Futuro Cuidador Principal', n++);
-    if(cp.nome||cp.cpf){ campo('Nome', cp.nome); campo('CPF', cp.cpf); campo('Telefone', cp.tel); campo('E-mail', cp.email); campo('Endereço', cp.end); campo('Relacionamento', cp.rel); campo('Já informado(a)', cp.informada); campo('Concorda previamente', cp.concorda); }
-    else paragrafo('Não indicado.', {italic:true, color:SOFT});
-    espaco(6);
-
-    secao('Futuro Cuidador Substituto', n++);
-    if(cs.nome||cs.cpf){ campo('Nome', cs.nome); campo('CPF', cs.cpf); campo('Telefone', cs.tel); campo('E-mail', cs.email); campo('Endereço', cs.end); campo('Relacionamento', cs.rel); campo('Já informado(a)', cs.informada); campo('Concorda previamente', cs.concorda); }
-    else paragrafo('Não indicado.', {italic:true, color:SOFT});
-    espaco(6);
-
-    const emg=(sucState.data.emg||[]).filter(e=>e&&(e.nome||e.tel));
-    if(emg.length){ secao('Contatos de Emergência', n++); emg.forEach(e=>campo(e.nome||'Contato', e.tel)); espaco(6); }
-
-    if(fin.indicar==='Sim' && (fin.valor||fin.bnome)){
-      secao('Recurso Destinado aos Cuidados', n++);
-      paragrafo('O tutor manifesta o desejo de que o valor de R$ '+(fin.valor||'____')+' seja utilizado para auxiliar nos cuidados, bem-estar, alimentação, saúde e manutenção dos animais descritos neste documento.', {justify:true});
-      if(fin.bnome) campo('Beneficiário indicado', [fin.bnome, fin.bcpf&&('CPF '+fin.bcpf), fin.btel].filter(Boolean).join(' · '));
-      if((fin.finalidades||[]).length) campo('Finalidade', fin.finalidades.join(', '));
-      if(fin.obs) campo('Observações', fin.obs);
-      paragrafo('O Patinha Viva não retém, não administra e não garante este valor; trata-se do registro da vontade do tutor.', {italic:true, size:9.5, color:SOFT, after:6});
-    }
-
-    secao('Diretivas de Cuidado', n++);
-    const D=sucState.data.dir||{}; const dl=[];
-    if(D.juntos)dl.push('Os animais devem permanecer juntos.');
-    if(D.alim)dl.push('A rotina alimentar deve ser mantida.');
-    if(D.vet)dl.push('O acompanhamento veterinário deve ser mantido.');
-    if(D.naodoar)dl.push('Não devem ser doados sem contato prévio ao cuidador substituto.');
-    if(D.medico)dl.push('As orientações médicas registradas devem ser respeitadas.');
-    if(!dl.length && !D.outras) paragrafo('Sem diretivas específicas registradas.', {italic:true, color:SOFT});
-    dl.forEach(x=>paragrafo('•  '+x, {after:2}));
-    if(D.outras){ espaco(2); campo('Outras instruções', D.outras); }
-    espaco(6);
-
-    secao('Declaração Final', n++);
-    paragrafo('Declaro que as informações aqui registradas expressam a minha vontade quanto à continuidade dos cuidados dos animais identificados neste documento, servindo como referência organizacional, afetiva e informativa para familiares, cuidadores e demais interessados.', {justify:true});
-    espaco(16); paragrafo('Local e data: ______________________________________________', {after:6});
-    assinatura(t.nome||'', 'Tutor(a)');
-
+  paragrafo('CLÁUSULA '+ord[ci++]+' — Dos animais. As disposições a seguir referem-se aos seguintes animais de estimação: '+(nomesPets.join('; ')||'os animais sob a minha responsabilidade')+', cujos dados, histórico de saúde e rotina constam do Plano de Continuidade dos Cuidados do Pet por mim elaborado, que integra esta manifestação de vontade.', {justify:true});
+  paragrafo('CLÁUSULA '+ord[ci++]+' — Da guarda. É da minha vontade que os animais acima sejam confiados aos cuidados de '+(cp.nome||'__________________________')+(cp.cpf?(', inscrito(a) no CPF sob o nº '+cp.cpf):'')+', a quem indico como responsável por sua guarda, manutenção e bem-estar.', {justify:true});
+  if(cs.nome||cs.cpf){
+    paragrafo('CLÁUSULA '+ord[ci++]+' — Do cuidador substituto. Na impossibilidade, recusa, falecimento ou impedimento do cuidador indicado na cláusula anterior, os cuidados dos animais deverão ser assumidos por '+cs.nome+(cs.cpf?(', CPF nº '+cs.cpf):'')+'.', {justify:true});
   } else {
-    // ===== MINUTA DE TESTAMENTO PARTICULAR =====
-    garante(64);
-    const boxTxt='DOCUMENTO EM FORMA DE RASCUNHO (MINUTA). Este texto foi gerado automaticamente a partir das informações fornecidas e NÃO constitui, por si só, um testamento válido. Para produzir efeitos, deve ser revisado por advogado(a) e formalizado conforme a lei. O Patinha Viva não presta consultoria jurídica.';
-    doc.setFont('times','italic'); doc.setFontSize(9.5);
-    const bl=doc.splitTextToSize(boxTxt, W-ML-MR-24), bh=bl.length*12+18;
-    doc.setFillColor(250,244,250); doc.setDrawColor(ACCENT[0],ACCENT[1],ACCENT[2]); doc.setLineWidth(0.9);
-    doc.roundedRect(ML, y, W-ML-MR, bh, 6,6, 'FD'); doc.setLineWidth(0.2);
-    cor([150,40,100]); doc.text(bl, ML+12, y+14); y+=bh+20; cor(INK);
-
-    secao('Testamento Particular');
-    const qual=[t.nome, t.nac||'brasileiro(a)', t.civil, t.prof, t.cpf?('inscrito(a) no CPF sob o nº '+t.cpf):'', (t.end||t.cidade)?('residente e domiciliado(a) em '+[t.end, t.cidade&&(t.cidade+(t.uf?'/'+t.uf:'')), t.cep&&('CEP '+t.cep)].filter(Boolean).join(', ')):''].filter(Boolean).join(', ');
-    paragrafo('Eu, '+qual+', no pleno gozo das minhas faculdades mentais e no uso da minha livre e consciente vontade, sem qualquer coação, resolvo, por meio deste testamento particular, dispor sobre a continuidade dos cuidados dos animais de estimação que se encontram sob a minha responsabilidade, nos termos das cláusulas seguintes.', {justify:true});
-    paragrafo('As disposições deste instrumento limitam-se aos cuidados dos animais aqui identificados e às quantias eventualmente a eles destinadas, não alcançando nem revogando quaisquer outras disposições de última vontade relativas aos demais bens e direitos do meu patrimônio.', {justify:true});
-
-    const ord=['PRIMEIRA','SEGUNDA','TERCEIRA','QUARTA','QUINTA','SEXTA','SÉTIMA']; let ci=0;
-    const nomesPets=sucState.petsSel.map(pid=>{ const p=(userPets||[]).find(x=>x.id===pid)||{}, pd=petsData[pid]||{}; const nm=p.nome||pd._nome||'animal', sp=sucEspecie(p.especie||pd._especie); return sp?(nm+' ('+sp.toLowerCase()+')'):nm; }).filter(Boolean);
-
-    paragrafo('CLÁUSULA '+ord[ci++]+' — Dos animais. As disposições a seguir referem-se aos seguintes animais de estimação: '+(nomesPets.join('; ')||'os animais sob a minha responsabilidade')+', cujos dados, histórico de saúde e rotina constam do Plano de Continuidade dos Cuidados do Pet por mim elaborado, que integra esta manifestação de vontade.', {justify:true});
-    paragrafo('CLÁUSULA '+ord[ci++]+' — Da guarda. É da minha vontade que os animais acima sejam confiados aos cuidados de '+(cp.nome||'__________________________')+(cp.cpf?(', inscrito(a) no CPF sob o nº '+cp.cpf):'')+', a quem indico como responsável por sua guarda, manutenção e bem-estar.', {justify:true});
-    if(cs.nome||cs.cpf){
-      paragrafo('CLÁUSULA '+ord[ci++]+' — Do cuidador substituto. Na impossibilidade, recusa, falecimento ou impedimento do cuidador indicado na cláusula anterior, os cuidados dos animais deverão ser assumidos por '+cs.nome+(cs.cpf?(', CPF nº '+cs.cpf):'')+'.', {justify:true});
-    } else {
-      paragrafo('CLÁUSULA '+ord[ci++]+' — Do cuidador substituto. Na impossibilidade do cuidador indicado, caberá aos meus familiares providenciar pessoa idônea para assumir os cuidados dos animais, observadas as diretivas deste instrumento.', {justify:true});
-    }
-    if(fin.indicar==='Sim' && (fin.valor||fin.bnome)){
-      paragrafo('CLÁUSULA '+ord[ci++]+' — Do recurso destinado aos cuidados. Lego a '+(fin.bnome||'__________________________')+(fin.bcpf?(', CPF nº '+fin.bcpf):'')+' a quantia de R$ '+(fin.valor||'__________')+', impondo-lhe o encargo de empregá-la, preferencialmente, na alimentação, no acompanhamento veterinário, nos medicamentos, na higiene e no bem-estar dos animais aqui referidos. Declaro ter ciência de que, na forma da legislação brasileira, os animais não podem figurar como herdeiros ou legatários, razão pela qual o valor é destinado à pessoa indicada, com o encargo de cuidar dos animais.', {justify:true});
-    }
-    const D=sucState.data.dir||{}; const dl=[];
-    if(D.juntos)dl.push('que os animais permaneçam juntos');
-    if(D.alim)dl.push('que a rotina alimentar seja mantida');
-    if(D.vet)dl.push('que o acompanhamento veterinário seja mantido');
-    if(D.naodoar)dl.push('que não sejam doados sem contato prévio ao cuidador substituto');
-    if(D.medico)dl.push('que sejam respeitadas as orientações médicas registradas');
-    let dirTxt='CLÁUSULA '+ord[ci++]+' — Das diretivas de cuidado. As orientações detalhadas sobre alimentação, saúde, rotina e demais necessidades dos animais constam do Plano de Continuidade dos Cuidados do Pet.';
-    if(dl.length) dirTxt+=' Manifesto, ainda, o desejo de: '+dl.join('; ')+'.';
-    if(D.outras) dirTxt+=' '+D.outras;
-    paragrafo(dirTxt, {justify:true});
-    paragrafo('CLÁUSULA '+ord[ci++]+' — Das disposições gerais. Tenho ciência de que este testamento, para produzir efeitos, deve observar as formalidades legais, e de que disposições de natureza patrimonial respeitam a legítima dos herdeiros necessários, quando existentes. Recomenda-se a revisão por advogado(a) e, sempre que possível, a lavratura perante Tabelionato de Notas.', {justify:true});
-
-    espaco(8);
-    paragrafo('E, por ser esta a expressão da minha livre e consciente vontade, lavro e assino o presente testamento particular, lido por mim em voz alta na presença das três testemunhas abaixo identificadas, que também o subscrevem.', {justify:true});
-    espaco(10); paragrafo('Local e data: ______________________________________________', {after:6});
-    assinatura(t.nome||'', 'Testador(a)');
-
-    espaco(6); subTitulo('Testemunhas');
-    for(let k=1;k<=3;k++){
-      garante(40); y+=12; doc.setDrawColor(90,90,100); doc.setLineWidth(0.6); doc.line(ML, y, ML+300, y); doc.setLineWidth(0.2); y+=12;
-      doc.setFont('times','italic'); doc.setFontSize(9.5); cor(SOFT); doc.text('Testemunha '+k+' — Nome / CPF', ML, y); y+=6; cor(INK);
-    }
-    espaco(12);
-    secao('Orientações para Validação');
-    paragrafo('Para que este testamento produza efeitos, ele precisa ser formalizado por uma das vias abaixo. Em ambos os casos, recomendamos a orientação de um(a) advogado(a) de sua confiança.', {justify:true});
-    paragrafo('1) Testamento particular: imprima este documento, leia-o em voz alta na presença de 3 (três) testemunhas maiores e capazes — que não sejam beneficiárias — e, em seguida, todos assinam. Guarde-o em local seguro e informe pessoas de confiança sobre a sua existência.', {justify:true});
-    paragrafo('2) Testamento público: leve estas informações a um Cartório de Notas (Tabelionato), onde o testamento será lavrado pelo tabelião — forma mais segura e de difícil contestação.', {justify:true});
-    paragrafo('O Patinha Viva organiza a sua manifestação de vontade, mas não presta consultoria jurídica nem garante a validade do documento.', {italic:true, size:9.5, color:SOFT});
+    paragrafo('CLÁUSULA '+ord[ci++]+' — Do cuidador substituto. Na impossibilidade do cuidador indicado, caberá aos meus familiares providenciar pessoa idônea para assumir os cuidados dos animais, observadas as diretivas deste instrumento.', {justify:true});
   }
-
-  // ===== RODAPÉ =====
-  const tot=doc.internal.getNumberOfPages();
-  for(let i=2;i<=tot;i++){
-    doc.setPage(i);
-    doc.setFont('times','italic'); doc.setFontSize(8.5); cor(SOFT);
-    doc.text(tituloDoc+'  ·  Patinha Viva  ·  patinhaviva.com.br', ML, H-30);
-    doc.text('Página '+(i-1)+' de '+(tot-1), W-MR, H-30, {align:'right'});
+  if(fin.indicar==='Sim' && (fin.valor||fin.bnome)){
+    paragrafo('CLÁUSULA '+ord[ci++]+' — Do recurso destinado aos cuidados. Lego a '+(fin.bnome||'__________________________')+(fin.bcpf?(', CPF nº '+fin.bcpf):'')+' a quantia de R$ '+(fin.valor||'__________')+', impondo-lhe o encargo de empregá-la, preferencialmente, na alimentação, no acompanhamento veterinário, nos medicamentos, na higiene e no bem-estar dos animais aqui referidos. Declaro ter ciência de que, na forma da legislação brasileira, os animais não podem figurar como herdeiros ou legatários, razão pela qual o valor é destinado à pessoa indicada, com o encargo de cuidar dos animais.', {justify:true});
   }
+  const D=sucState.data.dir||{}; const dl=[];
+  if(D.juntos)dl.push('que os animais permaneçam juntos');
+  if(D.alim)dl.push('que a rotina alimentar seja mantida');
+  if(D.vet)dl.push('que o acompanhamento veterinário seja mantido');
+  if(D.naodoar)dl.push('que não sejam doados sem contato prévio ao cuidador substituto');
+  if(D.medico)dl.push('que sejam respeitadas as orientações médicas registradas');
+  let dirTxt='CLÁUSULA '+ord[ci++]+' — Das diretivas de cuidado. As orientações detalhadas sobre alimentação, saúde, rotina e demais necessidades dos animais constam do Plano de Continuidade dos Cuidados do Pet.';
+  if(dl.length) dirTxt+=' Manifesto, ainda, o desejo de: '+dl.join('; ')+'.';
+  if(D.outras) dirTxt+=' '+D.outras;
+  paragrafo(dirTxt, {justify:true});
+  paragrafo('CLÁUSULA '+ord[ci++]+' — Das disposições gerais. As disposições de natureza patrimonial deste instrumento respeitam a legítima dos herdeiros necessários, quando existentes. Esta é a livre manifestação da minha vontade quanto à continuidade dos cuidados dos meus animais.', {justify:true});
 
-  const base=(kind==='plano')?'Plano-Continuidade-':'Minuta-Testamento-';
-  const fname=base+String(t.nome||'pet').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\w]+/g,'-').replace(/^-+|-+$/g,'')+'.pdf';
-  doc.save(fname);
+  espaco(8);
+  paragrafo('E, por ser esta a expressão da minha livre e consciente vontade, lavro e assino o presente testamento particular, lido por mim em voz alta na presença das três testemunhas abaixo identificadas, que também o subscrevem.', {justify:true});
+  espaco(10); paragrafo('Local e data: ______________________________________________', {after:6});
+  assinatura(t.nome||'', 'Testador(a)');
+  espaco(6); subTitulo('Testemunhas');
+  linhaTestemunha('Testemunha 1 — Nome / CPF');
+  linhaTestemunha('Testemunha 2 — Nome / CPF');
+  linhaTestemunha('Testemunha 3 — Nome / CPF');
+
+  K.finalizar(sucNomeArq('Testamento-Particular-', t.nome));
+}
+
+// ====== DOCUMENTO 3 — GUIA DE USO DOS DOCUMENTOS ======
+function sucGerarGuia(){
+  if(!window.jspdf || !window.jspdf.jsPDF){ alert('Não foi possível carregar o gerador de PDF. Verifique sua conexão e tente novamente.'); return; }
+  sucColeta(); const t=sucState.data.tutor||{};
+  const K=sucPdfKit('Guia de Uso dos Documentos');
+  const { paragrafo, secao, espaco } = K;
+  K.capa('Como utilizar o seu Planejamento Sucessório Pet', t.nome||'');
+
+  secao('Apresentação');
+  paragrafo('Este guia explica, em passos simples, como utilizar os documentos gerados no Planejamento Sucessório Pet e como mantê-los sempre atualizados, para que a sua vontade seja respeitada e os seus animais continuem bem cuidados.', {justify:true});
+
+  let n=1;
+  secao('Os seus documentos', n++);
+  paragrafo('1) Plano de Continuidade dos Cuidados — reúne a identificação do tutor e dos animais, a rotina, a saúde, os cuidadores indicados e as suas diretivas. É o guia prático e afetivo do dia a dia: compartilhe-o com o futuro cuidador e com pessoas de confiança.', {justify:true});
+  paragrafo('2) Testamento Particular — registra formalmente a sua vontade sobre quem cuidará dos seus animais e, se desejar, sobre um valor destinado a auxiliar nesses cuidados. É o documento que, depois de validado, produz efeitos.', {justify:true});
+
+  secao('Como dar validade ao seu Testamento', n++);
+  paragrafo('Recomendamos que, antes de tudo, o texto seja revisado por um(a) advogado(a) de sua confiança, para adequá-lo ao seu caso. Em seguida, escolha uma das vias abaixo para torná-lo válido:', {justify:true});
+  paragrafo('Via 1 — Testamento particular. Imprima o documento, leia-o em voz alta na presença de 3 (três) testemunhas maiores e capazes, que não sejam beneficiárias. Em seguida, você e as três testemunhas assinam todas as vias. Guarde o original em local seguro.', {justify:true});
+  paragrafo('Via 2 — Testamento público. Leve as informações a um Cartório de Notas (Tabelionato). O testamento será lavrado pelo tabelião — é a forma mais segura e de difícil contestação.', {justify:true});
+
+  secao('Onde guardar e quem informar', n++);
+  paragrafo('Guarde o documento original em local seguro e de fácil acesso a pessoas de confiança. Informe o cuidador principal e o substituto sobre a existência do documento e onde encontrá-lo. Considere entregar uma cópia do Plano de Continuidade ao futuro cuidador.', {justify:true});
+
+  secao('Mantendo tudo atualizado', n++);
+  paragrafo('Revise as informações periodicamente — pelo menos uma vez por ano. Sempre que algo mudar (novo pet, troca de cuidador, mudança de endereço, novas necessidades de saúde), atualize os dados no aplicativo Patinha Viva, gere novamente os documentos e formalize a nova versão. A versão mais recente e validada é a que vale.', {justify:true});
+
+  secao('Avisos importantes', n++);
+  paragrafo('Pela legislação brasileira, os animais não podem receber herança diretamente. Por isso, quando há um valor, ele é destinado a uma pessoa de confiança, com o encargo de utilizá-lo no cuidado dos animais.', {justify:true});
+  paragrafo('O Patinha Viva organiza e dá forma à sua vontade, mas não substitui a orientação de um(a) advogado(a) nem a atuação de um cartório. Em caso de dúvida sobre o seu caso específico, procure um profissional habilitado.', {justify:true});
+
+  K.finalizar(sucNomeArq('Guia-de-Uso-', t.nome||'patinhaviva'));
 }
 </script>
 </body>
