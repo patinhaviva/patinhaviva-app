@@ -3856,6 +3856,20 @@ function livroCarregarImg(url, maxPx){
   });
 }
 
+// Desenha um emoji num canvas (fonte de emoji do sistema) e devolve PNG com transparência.
+// O jsPDF/Times não renderiza emoji como texto, então inserimos como imagenzinha inline.
+function livroEmojiImg(ch, px){
+  try{
+    const size=px||72;
+    const cv=document.createElement('canvas'); cv.width=size; cv.height=size;
+    const ctx=cv.getContext('2d'); ctx.clearRect(0,0,size,size);
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.font=Math.round(size*0.82)+'px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji","Twemoji Mozilla",sans-serif';
+    ctx.fillText(ch, size/2, size/2);
+    return cv.toDataURL('image/png');
+  }catch(e){ return null; }
+}
+
 async function livroGerar(){
   if(livroBusy) return;
   if(!window.jspdf || !window.jspdf.jsPDF){ alert('Não foi possível carregar o gerador de PDF. Verifique sua conexão e tente novamente.'); return; }
@@ -3918,6 +3932,15 @@ async function livroGerar(){
       doc.setDrawColor(RULE[0],RULE[1],RULE[2]); doc.setLineWidth(0.5); doc.line(ML+40,S.y,W-MR,S.y); doc.setLineWidth(0.2); S.y+=20;
     }
 
+    // Moldura de foto: sombra suave + paspatur branco + borda fina rosé. Chamar ANTES do addImage.
+    function molduraFoto(ix,iy,dw,dh,matt){
+      matt=(matt==null?6:matt);
+      const fx=ix-matt, fy=iy-matt, fw=dw+2*matt, fh=dh+2*matt;
+      doc.setFillColor(232,226,232); doc.roundedRect(fx+2, fy+2.5, fw, fh, 5,5, 'F');     // sombra
+      doc.setFillColor(255,255,255); doc.setDrawColor(214,176,194); doc.setLineWidth(0.8); // paspatur + borda
+      doc.roundedRect(fx, fy, fw, fh, 5,5, 'FD'); doc.setLineWidth(0.2);
+    }
+
     // ---- CAPA ----
     doc.setDrawColor(ROSE[0],ROSE[1],ROSE[2]); doc.setLineWidth(1.4); doc.line(ML,60,W-MR,60); doc.setLineWidth(0.2);
     logoCentro(W/2,104,170);
@@ -3925,10 +3948,11 @@ async function livroGerar(){
     const capaFoto=await livroCarregarImg(pet.foto_url, 700);
     let cy=262;
     if(capaFoto){
-      const boxH=Math.min(210, 200*(capaFoto.h/capaFoto.w));
-      const fw=boxH*(capaFoto.w/capaFoto.h), fh=boxH;
-      try{ doc.addImage(capaFoto.dataURL,'JPEG',W/2-fw/2,cy,fw,fh); }catch(e){}
-      cy+=fh+26;
+      const imH=Math.min(206, 196*(capaFoto.h/capaFoto.w));
+      const imW=imH*(capaFoto.w/capaFoto.h);
+      const ix=W/2-imW/2, iy=cy+7;
+      try{ molduraFoto(ix,iy,imW,imH,7); doc.addImage(capaFoto.dataURL,'JPEG',ix,iy,imW,imH); }catch(e){}
+      cy=iy+imH+30;
     } else { cy+=10; }
     doc.setFont('times','bold'); doc.setFontSize(30); cor(INK);
     doc.text(String(pet.nome||'Meu Pet'),W/2,cy,{align:'center'}); cy+=6;
@@ -3955,7 +3979,8 @@ async function livroGerar(){
     else { paragrafo('As memórias a seguir contam a história de '+(pet.nome||'um pet')+' — cada momento, do jeitinho que aconteceu.', {justify:true, italic:true, color:SOFT}); }
 
     // ---- LINHA DO TEMPO ----
-    const tipoLabel={marco:'🎉 Marco especial',momento:'📸 Momento',saude:'💉 Saúde',aventura:'🌊 Aventura',memoriam:'💔 In memoriam'};
+    const tipoMeta={marco:{e:'🎉',t:'Marco especial'},momento:{e:'📸',t:'Momento do dia a dia'},saude:{e:'💉',t:'Saúde'},aventura:{e:'🌊',t:'Aventura'},memoriam:{e:'💔',t:'In memoriam'}};
+    const emojiCache={};
     tituloSecao('Linha do tempo');
     for(let i=0;i<memorias.length;i++){
       const m=memorias[i];
@@ -3965,14 +3990,23 @@ async function livroGerar(){
       try{ dtxt = m.data_memoria? dataExt(new Date(m.data_memoria+'T00:00:00')) : ''; }catch(e){}
       if(dtxt){ doc.setFont('times','italic'); doc.setFontSize(10); cor(ROSE); doc.text(dtxt,ML,S.y); S.y+=15; }
       doc.splitTextToSize(String(m.titulo||'Memória'),W-ML-MR).forEach(ln=>{ garante(17); doc.setFont('times','bold'); doc.setFontSize(13); cor(INK); doc.text(ln,ML,S.y); S.y+=17; });
-      if(tipoLabel[m.tipo]){ garante(13); doc.setFont('times','italic'); doc.setFontSize(9.5); cor(SOFT); doc.text(tipoLabel[m.tipo],ML,S.y); S.y+=14; }
+      const meta=tipoMeta[m.tipo];
+      if(meta){
+        garante(15);
+        doc.setFont('times','italic'); doc.setFontSize(9.5); cor(SOFT);
+        const es=11; let x=ML;
+        let eimg=emojiCache[meta.e]; if(eimg===undefined){ eimg=emojiCache[meta.e]=livroEmojiImg(meta.e,72); }
+        if(eimg){ try{ doc.addImage(eimg,'PNG',x,S.y-es+2.5,es,es); x+=es+4; }catch(e){} }
+        doc.text(meta.t,x,S.y); S.y+=14;
+      }
       if(img){
-        const maxW=W-ML-MR, maxH=300;
+        const matt=6, cW=W-ML-MR, maxW=cW-2*matt, maxH=288;
         let dw=maxW, dh=dw*(img.h/img.w);
         if(dh>maxH){ dh=maxH; dw=dh*(img.w/img.h); }
-        S.y+=4; garante(dh+10);
-        try{ doc.addImage(img.dataURL,'JPEG',ML+(maxW-dw)/2,S.y,dw,dh); }catch(e){}
-        S.y+=dh+10;
+        S.y+=6; garante(dh+2*matt+10);
+        const ix=ML+(cW-dw)/2, iy=S.y+matt;
+        try{ molduraFoto(ix,iy,dw,dh,matt); doc.addImage(img.dataURL,'JPEG',ix,iy,dw,dh); }catch(e){}
+        S.y=iy+dh+matt+10;
       }
       if(m.descricao){ paragrafo(m.descricao,{justify:true, size:11, after:6}); }
       if(i<memorias.length-1){ garante(22); S.y+=4; doc.setDrawColor(RULE[0],RULE[1],RULE[2]); doc.setLineWidth(0.5); doc.line(W/2-30,S.y,W/2+30,S.y); doc.setLineWidth(0.2); S.y+=18; }
