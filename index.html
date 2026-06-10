@@ -705,7 +705,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
     <div class="page" id="page-album">
       <div class="page-header">
         <div class="page-title">Álbum 🖼️</div>
-        <div class="page-subtitle">As fotos da sua família, reunidas num só lugar</div>
+        <div class="page-subtitle">As fotos da sua família, reunidas num só lugar ✨</div>
       </div>
 
       <!-- GATE: plano sem acesso -->
@@ -4100,8 +4100,11 @@ async function renderAlbum(){
   const vazio=document.getElementById('album-vazio');
   if(gate) gate.style.display='none';
   if(main) main.style.display='none';
+  console.log('[album] start; plano=', (currentProfile&&currentProfile.plano), 'main?', !!main, 'grid?', !!grid, 'pets=', (typeof userPets!=='undefined'&&userPets?userPets.length:'n/a'));
   try{
-    if(!(await acessoFamiliaPaga())){ if(gate) gate.style.display='block'; return; }
+    const _ac=await acessoFamiliaPaga();
+    console.log('[album] acessoFamiliaPaga=', _ac);
+    if(!_ac){ if(gate) gate.style.display='block'; return; }
     if(main) main.style.display='block';
 
     if(grid) grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:24px;color:var(--ink-soft);font-size:.85rem">Carregando fotos…</div>';
@@ -4118,6 +4121,7 @@ async function renderAlbum(){
       .order('data_memoria',{ascending:false});
     if(error) throw new Error(error.message||'consulta de memórias');
     mems=data||[];
+    console.log('[album] mems com foto=', mems.length, 'erro=', error);
 
     albumFotos=[];
     // Fotos de perfil dos pets (capas) primeiro
