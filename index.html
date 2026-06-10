@@ -4100,40 +4100,44 @@ async function renderAlbum(){
   const vazio=document.getElementById('album-vazio');
   if(gate) gate.style.display='none';
   if(main) main.style.display='none';
-
-  if(!(await acessoFamiliaPaga())){ if(gate) gate.style.display='block'; return; }
-  if(main) main.style.display='block';
-
-  if(grid) grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:24px;color:var(--ink-soft);font-size:.85rem">Carregando fotos…</div>';
-  if(vazio) vazio.style.display='none';
-
-  const pets=(userPets||[]);
-  const petById={}; pets.forEach(p=>petById[p.id]=p);
-
-  // Fotos das memórias (compartilhadas pela família via RLS minha_familia())
-  let mems=[];
   try{
-    const { data } = await supabase.from('memorias')
+    if(!(await acessoFamiliaPaga())){ if(gate) gate.style.display='block'; return; }
+    if(main) main.style.display='block';
+
+    if(grid) grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:24px;color:var(--ink-soft);font-size:.85rem">Carregando fotos…</div>';
+    if(vazio) vazio.style.display='none';
+
+    const pets=(userPets||[]);
+    const petById={}; pets.forEach(p=>petById[p.id]=p);
+
+    // Fotos das memórias (compartilhadas pela família via RLS minha_familia())
+    let mems=[];
+    const { data, error } = await supabase.from('memorias')
       .select('id,pet_id,titulo,descricao,tipo,foto_url,data_memoria')
       .not('foto_url','is',null)
       .order('data_memoria',{ascending:false});
+    if(error) throw new Error(error.message||'consulta de memórias');
     mems=data||[];
-  }catch(e){ mems=[]; }
 
-  albumFotos=[];
-  // Fotos de perfil dos pets (capas) primeiro
-  pets.forEach(p=>{
-    if(p.foto_url) albumFotos.push({ url:p.foto_url, petId:p.id, petNome:p.nome||'Pet', titulo:'Foto de perfil', data:null, descricao:'', isVideo:ehUrlVideo(p.foto_url), isPerfil:true, memoriaId:null });
-  });
-  // Memórias por data (mais recentes primeiro)
-  mems.forEach(m=>{
-    const p=petById[m.pet_id];
-    albumFotos.push({ url:m.foto_url, petId:m.pet_id, petNome:(p?p.nome:'')||'', titulo:m.titulo||'Memória', data:m.data_memoria||null, descricao:m.descricao||'', isVideo:ehUrlVideo(m.foto_url), isPerfil:false, memoriaId:m.id });
-  });
+    albumFotos=[];
+    // Fotos de perfil dos pets (capas) primeiro
+    pets.forEach(p=>{
+      if(p.foto_url) albumFotos.push({ url:p.foto_url, petId:p.id, petNome:p.nome||'Pet', titulo:'Foto de perfil', data:null, descricao:'', isVideo:ehUrlVideo(p.foto_url), isPerfil:true, memoriaId:null });
+    });
+    // Memórias por data (mais recentes primeiro)
+    mems.forEach(m=>{
+      const p=petById[m.pet_id];
+      albumFotos.push({ url:m.foto_url, petId:m.pet_id, petNome:(p?p.nome:'')||'', titulo:m.titulo||'Memória', data:m.data_memoria||null, descricao:m.descricao||'', isVideo:ehUrlVideo(m.foto_url), isPerfil:false, memoriaId:m.id });
+    });
 
-  albumFiltro='todos';
-  albumRenderChips();
-  albumRenderGrid();
+    albumFiltro='todos';
+    albumRenderChips();
+    albumRenderGrid();
+  }catch(e){
+    if(main) main.style.display='block';
+    if(grid) grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:22px;color:var(--rose);font-size:.85rem">Não foi possível carregar o álbum.<br><span style="color:var(--ink-soft)">'+((e&&e.message)?e.message:e)+'</span></div>';
+    console.error('renderAlbum:', e);
+  }
 }
 
 function albumBuildChips(){
