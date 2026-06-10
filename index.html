@@ -872,7 +872,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
 
             <div style="border:1.5px solid rgba(0,180,170,.25);border-radius:14px;padding:16px">
               <div style="font-weight:600;color:var(--ink);margin-bottom:4px">📘 Guia de Uso dos Documentos</div>
-              <div style="font-size:.8rem;color:var(--ink-soft);line-height:1.6;margin-bottom:12px">Passo a passo de como usar o Plano e o Testamento, como dar validade (advogado e 3 testemunhas ou cartório), onde guardar e como manter tudo atualizado.</div>
+              <div style="font-size:.8rem;color:var(--ink-soft);line-height:1.6;margin-bottom:12px">Passo a passo de como usar o Plano e o Testamento, como dar validade (3 testemunhas ou cartório), onde guardar e como manter tudo atualizado.</div>
               <button class="btn btn-secondary btn-sm" onclick="sucGerarGuia()">Gerar Guia (PDF)</button>
             </div>
           </div>
@@ -3692,7 +3692,7 @@ function sucGerarGuia(){
   paragrafo('2) Testamento Particular — registra formalmente a sua vontade sobre quem cuidará dos seus animais e, se desejar, sobre um valor destinado a auxiliar nesses cuidados. É o documento que, depois de validado, produz efeitos.', {justify:true});
 
   secao('Como dar validade ao seu Testamento', n++);
-  paragrafo('Recomendamos que, antes de tudo, o texto seja revisado por um(a) advogado(a) de sua confiança, para adequá-lo ao seu caso. Em seguida, escolha uma das vias abaixo para torná-lo válido:', {justify:true});
+  paragrafo('Para que o seu testamento produza efeitos, escolha uma das vias abaixo para torná-lo válido:', {justify:true});
   paragrafo('Via 1 — Testamento particular. Imprima o documento, leia-o em voz alta na presença de 3 (três) testemunhas maiores e capazes, que não sejam beneficiárias. Em seguida, você e as três testemunhas assinam todas as vias. Guarde o original em local seguro.', {justify:true});
   paragrafo('Via 2 — Testamento público. Leve as informações a um Cartório de Notas (Tabelionato). O testamento será lavrado pelo tabelião — é a forma mais segura e de difícil contestação.', {justify:true});
 
@@ -3704,7 +3704,7 @@ function sucGerarGuia(){
 
   secao('Avisos importantes', n++);
   paragrafo('Pela legislação brasileira, os animais não podem receber herança diretamente. Por isso, quando há um valor, ele é destinado a uma pessoa de confiança, com o encargo de utilizá-lo no cuidado dos animais.', {justify:true});
-  paragrafo('O Patinha Viva organiza e dá forma à sua vontade, mas não substitui a orientação de um(a) advogado(a) nem a atuação de um cartório. Em caso de dúvida sobre o seu caso específico, procure um profissional habilitado.', {justify:true});
+  paragrafo('O Patinha Viva organiza e dá forma à sua vontade. Guarde o documento com cuidado, mantenha-o atualizado sempre que algo mudar e, caso opte pela via do cartório, leve as informações ao Tabelionato de Notas.', {justify:true});
 
   K.finalizar(sucNomeArq('Guia-de-Uso-', t.nome||'patinhaviva'));
 }
