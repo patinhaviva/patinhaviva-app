@@ -481,6 +481,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
         <button class="nav-item" onclick="navigate('memorial')">
           <span class="nav-icon">♡</span> Memorial
         </button>
+        <button class="nav-item" onclick="navigate('livro')">
+          <span class="nav-icon">📖</span> Livro de Memórias
+        </button>
         <button class="nav-item" onclick="navigate('saude')">
           <span class="nav-icon">💊</span> PetVault Saúde
         </button>
@@ -696,6 +699,42 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
     </div>
 
     <!-- TESTAMENTO PET (Planejamento Sucessório) -->
+    <div class="page" id="page-livro">
+      <div class="page-header">
+        <div class="page-title">Livro de Memórias 📖</div>
+        <div class="page-subtitle">A história do seu pet em um livro, pronto para guardar e compartilhar</div>
+      </div>
+
+      <!-- GATE: plano sem acesso -->
+      <div id="livro-gate" class="card" style="display:none;text-align:center;padding:44px 24px;max-width:640px;margin:0 auto">
+        <div style="font-size:3rem;margin-bottom:12px">📖</div>
+        <div style="font-family:'Lora',serif;font-size:1.25rem;font-weight:700;color:var(--ink);margin-bottom:10px">Recurso dos planos pagos</div>
+        <p style="font-size:.88rem;color:var(--ink-mid);line-height:1.7;margin-bottom:18px">O <b>Livro de Memórias</b> reúne a linha do tempo completa do seu pet — fotos, marcos e histórias — em um <b>PDF lindo e timbrado</b>, pronto para guardar para sempre e compartilhar com a família. Disponível nos planos <b>Premium</b>, <b>Duo</b> e <b>Família</b>.</p>
+        <button class="btn btn-primary" onclick="navigate('plano')">Ver planos</button>
+      </div>
+
+      <!-- MAIN -->
+      <div id="livro-main" style="display:none;max-width:760px;margin:0 auto">
+        <div class="card" style="border-left:4px solid var(--rose);background:rgba(214,51,132,.05);margin-bottom:18px">
+          <div style="font-size:.86rem;color:var(--ink-mid);line-height:1.7">
+            📖 <b>O Livro de Memórias é gerado na hora, a partir das memórias que você já registrou.</b> Escolha um pet, confira a prévia e gere o PDF — uma capa nobre, a história do seu pet e cada memória em ordem, com as fotos. Quanto mais memórias você adicionar no <b>Memorial</b>, mais rico fica o livro.
+          </div>
+        </div>
+
+        <div class="card">
+          <label style="font-size:.82rem;color:var(--ink-soft);display:block;margin-bottom:6px">Escolha o pet</label>
+          <select id="livro-pet-select" onchange="livroPreview()" style="width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:.9rem;color:var(--ink);background:#fff"></select>
+
+          <div id="livro-vazio" style="display:none;text-align:center;padding:28px 12px;color:var(--ink-soft)">
+            <div style="font-size:2.4rem;margin-bottom:10px">🐾</div>
+            <div>Cadastre um pet primeiro para criar o Livro de Memórias.</div>
+          </div>
+
+          <div id="livro-preview" style="display:none;margin-top:18px"></div>
+        </div>
+      </div>
+    </div>
+
     <div class="page" id="page-sucessao">
       <div class="page-header">
         <div class="page-title">Testamento Pet ⚖</div>
@@ -1429,6 +1468,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
           <div>✓ Comunidade</div>
           <div>✓ Plaquinha QR (sob pedido)</div>
           <div>✓ Testamento Pet (1 pet)</div>
+          <div>✓ Livro de Memórias</div>
         </div>
         <button class="btn btn-secondary" style="width:100%" onclick="pedirAssinatura('premium')">Assinar Premium</button>
       </div>
@@ -1447,6 +1487,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
           <div>✓ Comunidade</div>
           <div>✓ Plaquinhas QR (sob pedido)</div>
           <div>✓ Testamento Pet (até 2 pets)</div>
+          <div>✓ Livro de Memórias</div>
         </div>
         <button class="btn btn-primary" style="width:100%" onclick="pedirAssinatura('duo')">Assinar Duo</button>
       </div>
@@ -1464,6 +1505,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
           <div>✓ Comunidade</div>
           <div>✓ Plaquinhas QR (sob pedido)</div>
           <div>✓ Testamento Pet (até 4 pets)</div>
+          <div>✓ Livro de Memórias</div>
         </div>
         <button class="btn btn-secondary" style="width:100%" onclick="pedirAssinatura('familia')">Assinar Família</button>
       </div>
@@ -2967,6 +3009,9 @@ function navigate(page) {
   if(page === 'sucessao'){
     renderSucessao();
   }
+  if(page === 'livro'){
+    renderLivro();
+  }
 }
 
 // ── ADMIN (métricas agregadas via RPC com checagem de is_admin) ──
@@ -3712,6 +3757,280 @@ function sucGerarGuia(){
   paragrafo('O Patinha Viva organiza e dá forma à sua vontade. Guarde o documento com cuidado, mantenha-o atualizado sempre que algo mudar e, caso opte pela via do cartório, leve as informações ao Tabelionato de Notas.', {justify:true});
 
   K.finalizar(sucNomeArq('Guia-de-Uso-', t.nome||'patinhaviva'));
+}
+
+// ====== LIVRO DE MEMÓRIAS (auto-serviço; PDF por pet, gerado das memórias) ======
+const LIVRO_PLANOS = { premium:true, duo:true, familia:true };
+let livroBusy = false;
+let livroPreviewCache = { petId:null, memorias:[] };
+
+function renderLivro(){
+  const gate=document.getElementById('livro-gate');
+  const main=document.getElementById('livro-main');
+  const sel=document.getElementById('livro-pet-select');
+  const vazio=document.getElementById('livro-vazio');
+  const prev=document.getElementById('livro-preview');
+  if(gate) gate.style.display='none';
+  if(main) main.style.display='none';
+  if(prev){ prev.style.display='none'; prev.innerHTML=''; }
+
+  const plano=(currentProfile?.plano||'livre').toLowerCase();
+  if(!LIVRO_PLANOS[plano]){ if(gate) gate.style.display='block'; return; }
+
+  if(main) main.style.display='block';
+  const pets=(typeof userPets!=='undefined' && userPets)?userPets:[];
+  if(!pets.length){ if(sel) sel.style.display='none'; if(vazio) vazio.style.display='block'; return; }
+  if(vazio) vazio.style.display='none';
+  if(sel){
+    sel.style.display='block';
+    const atual=sel.value;
+    sel.innerHTML=pets.map(p=>'<option value="'+p.id+'">'+sucEsc(p.nome||'Pet')+'</option>').join('');
+    const alvo=pets.find(p=>p.id===atual)?atual:(pets.find(p=>p.id===currentPetId)?currentPetId:pets[0].id);
+    sel.value=alvo;
+  }
+  livroPreview();
+}
+
+async function livroPreview(){
+  const sel=document.getElementById('livro-pet-select');
+  const prev=document.getElementById('livro-preview');
+  if(!sel || !prev) return;
+  const pet=(userPets||[]).find(p=>p.id===sel.value);
+  if(!pet){ prev.style.display='none'; return; }
+  prev.style.display='block';
+  prev.innerHTML='<div style="text-align:center;padding:18px;color:var(--ink-soft);font-size:.85rem">Carregando memórias de '+sucEsc(pet.nome||'')+'…</div>';
+
+  let memorias=[];
+  try{
+    const { data } = await supabase.from('memorias').select('*').eq('pet_id', pet.id).order('data_memoria',{ascending:true});
+    memorias=data||[];
+  }catch(e){ memorias=[]; }
+  // se o usuário trocou de pet enquanto carregava, aborta
+  if(sel.value!==pet.id) return;
+  livroPreviewCache={ petId:pet.id, memorias };
+
+  const n=memorias.length;
+  const comFoto=memorias.filter(m=>m.foto_url).length;
+  const capa = pet.foto_url
+    ? '<img src="'+pet.foto_url+'" style="width:64px;height:64px;border-radius:14px;object-fit:cover"/>'
+    : '<div style="width:64px;height:64px;border-radius:14px;background:linear-gradient(135deg,#F3EEF9,#EAF5F8);display:flex;align-items:center;justify-content:center;font-size:2rem">'+(typeof petEmoji==='function'?petEmoji(pet):'🐾')+'</div>';
+
+  if(n===0){
+    prev.innerHTML='<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">'+capa
+      +'<div><div style="font-family:\'Lora\',serif;font-size:1.15rem;color:var(--ink);font-weight:700">'+sucEsc(pet.nome||'')+'</div>'
+      +'<div style="font-size:.82rem;color:var(--ink-soft)">Ainda sem memórias registradas</div></div></div>'
+      +'<div style="background:var(--bg);border-radius:12px;padding:18px;text-align:center;color:var(--ink-mid);font-size:.86rem">Para montar o Livro de Memórias, adicione ao menos uma memória de '+sucEsc(pet.nome||'')+' no Memorial.<br><button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="navigate(\'memorial\')">Ir para o Memorial</button></div>';
+    return;
+  }
+
+  prev.innerHTML='<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">'+capa
+    +'<div><div style="font-family:\'Lora\',serif;font-size:1.15rem;color:var(--ink);font-weight:700">'+sucEsc(pet.nome||'')+'</div>'
+    +'<div style="font-size:.82rem;color:var(--ink-soft)">'+n+' '+(n>1?'memórias':'memória')+(comFoto?(' · '+comFoto+' com foto'):'')+'</div></div></div>'
+    +'<div style="background:var(--bg);border-radius:12px;padding:16px 18px;font-size:.84rem;color:var(--ink-mid);line-height:1.6;margin-bottom:16px">O livro vai reunir a história de <b>'+sucEsc(pet.nome||'')+'</b> e essas '+n+' '+(n>1?'memórias':'memória')+' em ordem cronológica, com as fotos, numa publicação em PDF.</div>'
+    +'<button id="livro-btn-gerar" class="btn btn-primary" style="width:100%" onclick="livroGerar()">📖 Gerar Livro de Memórias (PDF)</button>'
+    +'<div style="font-size:.74rem;color:var(--ink-soft);text-align:center;margin-top:8px">As fotos são carregadas para o PDF — em livros com muitas fotos, pode levar alguns segundos.</div>';
+}
+
+// Carrega uma imagem remota e devolve {dataURL,w,h} re-codificada em JPEG (normaliza
+// formato e reduz tamanho). Retorna null em qualquer falha (foto é simplesmente omitida).
+function livroCarregarImg(url, maxPx){
+  return new Promise((resolve)=>{
+    if(!url){ resolve(null); return; }
+    const im=new Image(); im.crossOrigin='anonymous';
+    let done=false; const finish=(v)=>{ if(!done){ done=true; resolve(v); } };
+    im.onload=()=>{
+      try{
+        let w=im.naturalWidth||im.width, h=im.naturalHeight||im.height;
+        if(!w||!h){ finish(null); return; }
+        const scale=Math.min(1,(maxPx||1000)/Math.max(w,h));
+        const cw=Math.max(1,Math.round(w*scale)), ch=Math.max(1,Math.round(h*scale));
+        const cv=document.createElement('canvas'); cv.width=cw; cv.height=ch;
+        const ctx=cv.getContext('2d'); ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,cw,ch);
+        ctx.drawImage(im,0,0,cw,ch);
+        finish({ dataURL:cv.toDataURL('image/jpeg',0.82), w:cw, h:ch });
+      }catch(e){ finish(null); }
+    };
+    im.onerror=()=>finish(null);
+    setTimeout(()=>finish(null), 12000);
+    im.src=url;
+  });
+}
+
+// Desenha um emoji num canvas (fonte de emoji do sistema) e devolve PNG com transparência.
+// O jsPDF/Times não renderiza emoji como texto, então inserimos como imagenzinha inline.
+function livroEmojiImg(ch, px){
+  try{
+    const size=px||72;
+    const cv=document.createElement('canvas'); cv.width=size; cv.height=size;
+    const ctx=cv.getContext('2d'); ctx.clearRect(0,0,size,size);
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.font=Math.round(size*0.82)+'px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji","Twemoji Mozilla",sans-serif';
+    ctx.fillText(ch, size/2, size/2);
+    return cv.toDataURL('image/png');
+  }catch(e){ return null; }
+}
+
+async function livroGerar(){
+  if(livroBusy) return;
+  if(!window.jspdf || !window.jspdf.jsPDF){ alert('Não foi possível carregar o gerador de PDF. Verifique sua conexão e tente novamente.'); return; }
+  const sel=document.getElementById('livro-pet-select');
+  const pet=(userPets||[]).find(p=>p.id===(sel?sel.value:null));
+  if(!pet){ alert('Selecione um pet.'); return; }
+
+  let memorias=(livroPreviewCache.petId===pet.id)?livroPreviewCache.memorias:null;
+  const btn=document.getElementById('livro-btn-gerar');
+  livroBusy=true;
+  if(btn){ btn.disabled=true; btn.textContent='Montando o livro…'; }
+  try{
+    if(!memorias){
+      const { data } = await supabase.from('memorias').select('*').eq('pet_id', pet.id).order('data_memoria',{ascending:true});
+      memorias=data||[];
+    }
+    if(!memorias.length){ alert('Adicione ao menos uma memória no Memorial antes de gerar o livro.'); return; }
+
+    const tutorNome=(currentProfile?.nome)||'';
+    const { jsPDF }=window.jspdf;
+    const doc=new jsPDF({ unit:'pt', format:'a4', compress:true });
+    const W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight();
+    const ML=58, MR=58, MB=58;
+    const ROSE=[214,51,132], INK=[34,34,42], SOFT=[120,120,132], RULE=[224,210,224];
+    const meses=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+    const cor=(c)=>doc.setTextColor(c[0],c[1],c[2]);
+    const S={ y:0 };
+    const dataExt=(d)=>{ try{ return d.getDate()+' de '+meses[d.getMonth()]+' de '+d.getFullYear(); }catch(e){ return ''; } };
+
+    function logoCentro(cx,topY,w){
+      try{ if(typeof SUC_LOGO!=='undefined' && SUC_LOGO && SUC_LOGO.indexOf('data:image')===0){ const h=w/SUC_LOGO_RATIO; doc.addImage(SUC_LOGO,'PNG',cx-w/2,topY,w,h); return h; } }catch(e){}
+      doc.setFont('times','bold'); doc.setFontSize(18); cor(ROSE); doc.text('Patinha Viva',cx,topY+16,{align:'center'}); cor(INK); return 22;
+    }
+    function cabecalho(){
+      const w=92, h=logoCentro(W/2,28,w), ly=28+h+8;
+      doc.setDrawColor(RULE[0],RULE[1],RULE[2]); doc.setLineWidth(0.6); doc.line(ML,ly,W-MR,ly); doc.setLineWidth(0.2);
+      S.y=ly+22;
+    }
+    function novaPagina(){ doc.addPage(); cabecalho(); }
+    function garante(hh){ if(S.y+hh>H-MB) novaPagina(); }
+    function paragrafo(txt,o){
+      o=o||{}; const size=o.size||11; const style=o.bold?'bold':(o.italic?'italic':'normal');
+      const maxW=W-ML-MR, lh=o.lh||(size*1.5);
+      const lines=doc.splitTextToSize(String(txt),maxW);
+      lines.forEach((ln,i)=>{
+        garante(lh);
+        doc.setFontSize(size); doc.setFont('times',style); cor(o.color||INK);
+        const last=(i===lines.length-1);
+        if(o.center) doc.text(ln,W/2,S.y,{align:'center'});
+        else if(o.justify && !last) doc.text(ln,ML,S.y,{maxWidth:maxW,align:'justify'});
+        else doc.text(ln,ML,S.y);
+        S.y+=lh;
+      });
+      S.y+=(o.after!=null?o.after:size*0.5); cor(INK);
+    }
+    function tituloSecao(txt){
+      S.y+=4; garante(34); doc.setFont('times','bold'); doc.setFontSize(13.5); cor(INK);
+      doc.text(String(txt),ML,S.y); S.y+=8;
+      doc.setDrawColor(ROSE[0],ROSE[1],ROSE[2]); doc.setLineWidth(1); doc.line(ML,S.y,ML+40,S.y);
+      doc.setDrawColor(RULE[0],RULE[1],RULE[2]); doc.setLineWidth(0.5); doc.line(ML+40,S.y,W-MR,S.y); doc.setLineWidth(0.2); S.y+=20;
+    }
+
+    // Moldura de foto: sombra suave + paspatur branco + borda fina rosé. Chamar ANTES do addImage.
+    function molduraFoto(ix,iy,dw,dh,matt){
+      matt=(matt==null?6:matt);
+      const fx=ix-matt, fy=iy-matt, fw=dw+2*matt, fh=dh+2*matt;
+      doc.setFillColor(232,226,232); doc.roundedRect(fx+2, fy+2.5, fw, fh, 5,5, 'F');     // sombra
+      doc.setFillColor(255,255,255); doc.setDrawColor(214,176,194); doc.setLineWidth(0.8); // paspatur + borda
+      doc.roundedRect(fx, fy, fw, fh, 5,5, 'FD'); doc.setLineWidth(0.2);
+    }
+
+    // ---- CAPA ----
+    doc.setDrawColor(ROSE[0],ROSE[1],ROSE[2]); doc.setLineWidth(1.4); doc.line(ML,60,W-MR,60); doc.setLineWidth(0.2);
+    logoCentro(W/2,104,170);
+    doc.setFont('times','bold'); doc.setFontSize(15); cor(SOFT); doc.text('LIVRO DE MEMÓRIAS',W/2,236,{align:'center'});
+    const capaFoto=await livroCarregarImg(pet.foto_url, 700);
+    let cy=262;
+    if(capaFoto){
+      const imH=Math.min(206, 196*(capaFoto.h/capaFoto.w));
+      const imW=imH*(capaFoto.w/capaFoto.h);
+      const ix=W/2-imW/2, iy=cy+7;
+      try{ molduraFoto(ix,iy,imW,imH,7); doc.addImage(capaFoto.dataURL,'JPEG',ix,iy,imW,imH); }catch(e){}
+      cy=iy+imH+30;
+    } else { cy+=10; }
+    doc.setFont('times','bold'); doc.setFontSize(30); cor(INK);
+    doc.text(String(pet.nome||'Meu Pet'),W/2,cy,{align:'center'}); cy+=6;
+    const subt=[pet.raca||sucEspecie(pet.especie), pet.data_nascimento?('nascido em '+sucDataBR(pet.data_nascimento)):''].filter(Boolean).join(' · ');
+    if(subt){ doc.setFont('times','italic'); doc.setFontSize(12); cor(SOFT); cy+=16; doc.text(subt,W/2,cy,{align:'center'}); }
+    doc.setDrawColor(ROSE[0],ROSE[1],ROSE[2]); doc.setLineWidth(1.4); doc.line(ML,H-78,W-MR,H-78); doc.setLineWidth(0.2);
+    doc.setFont('times','normal'); doc.setFontSize(10.5); cor(INK);
+    if(tutorNome) doc.text('Com amor, '+tutorNome,W/2,H-58,{align:'center'});
+    doc.setFont('times','italic'); doc.setFontSize(9.5); cor(SOFT);
+    doc.text('Patinha Viva — memória, amor e cuidado que duram para sempre',W/2,H-40,{align:'center'});
+    novaPagina();
+
+    // ---- A HISTÓRIA DO PET ----
+    tituloSecao('A história de '+(pet.nome||'meu pet'));
+    const ficha=[
+      ['Espécie', sucEspecie(pet.especie)],
+      ['Raça', pet.raca],
+      ['Sexo', sucSexo(pet.sexo)],
+      ['Nascimento', pet.data_nascimento?sucDataBR(pet.data_nascimento):''],
+      ['Peso', pet.peso?(pet.peso+' kg'):'']
+    ].filter(x=>x[1]);
+    if(ficha.length){ paragrafo(ficha.map(x=>x[0]+': '+x[1]).join('   ·   '), {size:10.5, italic:true, color:SOFT, after:10}); }
+    if(pet.historia){ paragrafo(pet.historia, {justify:true, after:8}); }
+    else { paragrafo('As memórias a seguir contam a história de '+(pet.nome||'um pet')+' — cada momento, do jeitinho que aconteceu.', {justify:true, italic:true, color:SOFT}); }
+
+    // ---- LINHA DO TEMPO ----
+    const tipoMeta={marco:{e:'🎉',t:'Marco especial'},momento:{e:'📸',t:'Momento do dia a dia'},saude:{e:'💉',t:'Saúde'},aventura:{e:'🌊',t:'Aventura'},memoriam:{e:'💔',t:'In memoriam'}};
+    const emojiCache={};
+    tituloSecao('Linha do tempo');
+    for(let i=0;i<memorias.length;i++){
+      const m=memorias[i];
+      const img = m.foto_url? await livroCarregarImg(m.foto_url, 1100) : null;
+      garante(58);
+      let dtxt='';
+      try{ dtxt = m.data_memoria? dataExt(new Date(m.data_memoria+'T00:00:00')) : ''; }catch(e){}
+      if(dtxt){ doc.setFont('times','italic'); doc.setFontSize(10); cor(ROSE); doc.text(dtxt,ML,S.y); S.y+=15; }
+      doc.splitTextToSize(String(m.titulo||'Memória'),W-ML-MR).forEach(ln=>{ garante(17); doc.setFont('times','bold'); doc.setFontSize(13); cor(INK); doc.text(ln,ML,S.y); S.y+=17; });
+      const meta=tipoMeta[m.tipo];
+      if(meta){
+        garante(15);
+        doc.setFont('times','italic'); doc.setFontSize(9.5); cor(SOFT);
+        const es=11; let x=ML;
+        let eimg=emojiCache[meta.e]; if(eimg===undefined){ eimg=emojiCache[meta.e]=livroEmojiImg(meta.e,72); }
+        if(eimg){ try{ doc.addImage(eimg,'PNG',x,S.y-es+2.5,es,es); x+=es+4; }catch(e){} }
+        doc.text(meta.t,x,S.y); S.y+=14;
+      }
+      if(img){
+        const matt=6, cW=W-ML-MR, maxW=cW-2*matt, maxH=288;
+        let dw=maxW, dh=dw*(img.h/img.w);
+        if(dh>maxH){ dh=maxH; dw=dh*(img.w/img.h); }
+        S.y+=6; garante(dh+2*matt+10);
+        const ix=ML+(cW-dw)/2, iy=S.y+matt;
+        try{ molduraFoto(ix,iy,dw,dh,matt); doc.addImage(img.dataURL,'JPEG',ix,iy,dw,dh); }catch(e){}
+        S.y=iy+dh+matt+10;
+      }
+      if(m.descricao){ paragrafo(m.descricao,{justify:true, size:11, after:6}); }
+      if(i<memorias.length-1){ garante(22); S.y+=4; doc.setDrawColor(RULE[0],RULE[1],RULE[2]); doc.setLineWidth(0.5); doc.line(W/2-30,S.y,W/2+30,S.y); doc.setLineWidth(0.2); S.y+=18; }
+    }
+
+    // ---- ENCERRAMENTO ----
+    novaPagina(); S.y=H/2-70;
+    paragrafo('Obrigado por fazer parte da história de '+(pet.nome||'um pet querido')+'.', {center:true, italic:true, size:13, after:6});
+    paragrafo('Cada memória aqui é um pedacinho de amor que dura para sempre.', {center:true, italic:true, size:12, color:SOFT, after:22});
+    logoCentro(W/2,S.y,120);
+
+    // ---- RODAPÉ / PAGINAÇÃO ----
+    const tot=doc.internal.getNumberOfPages();
+    for(let i=2;i<=tot;i++){ doc.setPage(i); doc.setFont('times','italic'); doc.setFontSize(8.5); cor(SOFT);
+      doc.text('Livro de Memórias · '+(pet.nome||'')+' · Patinha Viva',ML,H-28);
+      doc.text('Página '+(i-1)+' de '+(tot-1),W-MR,H-28,{align:'right'}); }
+
+    doc.save(sucNomeArq('Livro-de-Memorias-', pet.nome||'pet'));
+  }catch(e){
+    alert('Não foi possível gerar o livro: '+((e&&e.message)||e));
+  }finally{
+    livroBusy=false;
+    if(btn){ btn.disabled=false; btn.textContent='📖 Gerar Livro de Memórias (PDF)'; }
+  }
 }
 </script>
 </body>
