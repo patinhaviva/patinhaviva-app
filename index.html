@@ -3775,7 +3775,14 @@ function renderLivro(){
   if(prev){ prev.style.display='none'; prev.innerHTML=''; }
 
   const plano=(currentProfile?.plano||'livre').toLowerCase();
-  if(!LIVRO_PLANOS[plano]){ if(gate) gate.style.display='block'; return; }
+  let liberado=!!LIVRO_PLANOS[plano];
+  if(!liberado){
+    // Co-tutor (membro) só existe em família PAGA (o convite exige plano pago),
+    // então herda o acesso ao Livro mesmo com o próprio plano "livre".
+    if(!familiaInfo){ try{ await carregarFamiliaInfo(); }catch(e){} }
+    if(familiaInfo && familiaInfo.papel==='membro') liberado=true;
+  }
+  if(!liberado){ if(gate) gate.style.display='block'; return; }
 
   if(main) main.style.display='block';
   const pets=(typeof userPets!=='undefined' && userPets)?userPets:[];
