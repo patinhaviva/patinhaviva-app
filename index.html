@@ -3311,6 +3311,9 @@ function sucRenderPetForms(){
         F('Veterinário','vet')+F('Clínica','clinica')+F('Telefone da clínica','telclinica')+
         F('Doenças conhecidas','doencas',true)+
         F('Medicamentos contínuos','medicamentos')+F('Alergias','alergias')+F('Vacinas importantes','vacinas')+
+        '<div class="form-group"><label class="form-label">Tem plano de saúde?</label><select class="form-input suc-pet-f" data-pid="'+pid+'" data-f="planotem"><option value="">—</option><option '+(d.planotem==='Sim'?'selected':'')+'>Sim</option><option '+(d.planotem==='Não'?'selected':'')+'>Não</option></select></div>'+
+        F('Plano de saúde (operadora)','planonome')+
+        F('Login do plano','planologin')+F('Senha do plano','planosenha')+
         F('Marca da ração','racao')+F('Quantidade diária','racaoqtd')+
         F('Rotina de alimentação','rotalim',true)+
         F('Rotina de passeios','rotpasseio')+F('Rotina de higiene','rothigiene')+
@@ -3563,12 +3566,14 @@ async function sucGerarPlano(){
   let algumSaude=false;
   sucState.petsSel.forEach(pid=>{
     const p=(userPets||[]).find(x=>x.id===pid)||{}, pd=petsData[pid]||{};
-    const algo=['vet','clinica','telclinica','doencas','medicamentos','alergias','vacinas','racao','racaoqtd','rotalim','rotpasseio','rothigiene','necessidades','comportamentos','restricoes'].some(k=>pd[k]);
+    const algo=['vet','clinica','telclinica','doencas','medicamentos','alergias','vacinas','planotem','planonome','planologin','planosenha','racao','racaoqtd','rotalim','rotpasseio','rothigiene','necessidades','comportamentos','restricoes'].some(k=>pd[k]);
     if(!algo) return; algumSaude=true;
     subTitulo(p.nome||pd._nome||'Pet');
     campo('Veterinário', pd.vet); campo('Clínica', [pd.clinica, pd.telclinica].filter(Boolean).join(' — '));
     campo('Doenças conhecidas', pd.doencas); campo('Medicamentos contínuos', pd.medicamentos);
     campo('Alergias', pd.alergias); campo('Vacinas importantes', pd.vacinas);
+    campo('Plano de saúde', pd.planonome || (pd.planotem==='Sim'?'Sim':(pd.planotem==='Não'?'Não':'')));
+    campo('Acesso ao plano', [pd.planologin&&('Login: '+pd.planologin), pd.planosenha&&('Senha: '+pd.planosenha)].filter(Boolean).join('   ·   '));
     campo('Alimentação', [pd.racao, pd.racaoqtd, pd.rotalim].filter(Boolean).join(' · '));
     campo('Rotina de passeios', pd.rotpasseio); campo('Rotina de higiene', pd.rothigiene);
     campo('Necessidades especiais', pd.necessidades); campo('Comportamentos / medos', pd.comportamentos);
