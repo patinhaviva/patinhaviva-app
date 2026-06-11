@@ -975,8 +975,17 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
             <div class="page-title">Comunidade 💬</div>
             <div class="page-subtitle">Tutores que entendem o amor incondicional</div>
           </div>
-          <button class="btn btn-primary btn-sm" onclick="openModal('modal-post')">+ Compartilhar</button>
+          <button class="btn btn-primary btn-sm" id="btn-novo-post" onclick="openModal('modal-post')">+ Compartilhar</button>
         </div>
+      </div>
+
+      <div id="comunidade-gate" style="display:none;background:linear-gradient(135deg,rgba(124,47,214,.1),rgba(25,182,196,.1));border:1px solid rgba(124,47,214,.18);border-radius:14px;padding:14px 16px;margin-bottom:20px;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="font-size:1.5rem">🔒</div>
+        <div style="flex:1;min-width:180px">
+          <div style="font-weight:600;font-size:.9rem;color:var(--ink)">Você está no plano Livre</div>
+          <div style="font-size:.8rem;color:var(--ink-mid)">Leia tudo à vontade. Para publicar, curtir e comentar, assine um plano.</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openModal('modal-planos')">Ver planos</button>
       </div>
 
       <div id="feed-filtros" style="display:flex;gap:10px;margin-bottom:24px;overflow-x:auto;padding-bottom:4px">
@@ -984,7 +993,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
         <button class="btn btn-secondary btn-sm" onclick="filtrarFeed('luto',this)">💔 Luto pet</button>
         <button class="btn btn-secondary btn-sm" onclick="filtrarFeed('comemoracao',this)">🎉 Comemorações</button>
         <button class="btn btn-secondary btn-sm" onclick="filtrarFeed('dica',this)">💡 Dicas</button>
-        <button class="btn btn-secondary btn-sm" onclick="filtrarFeed('pergunta',this)">❓ Perguntas</button>
+        <button class="btn btn-secondary btn-sm" onclick="filtrarFeed('curiosidade',this)">🔎 Curiosidades</button>
       </div>
 
       <div id="feed-comunidade">
@@ -1325,7 +1334,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
           <option>🎉 Comemoração</option>
           <option>💔 Luto pet</option>
           <option>💡 Dica</option>
-          <option>❓ Pergunta</option>
+          <option>🔎 Curiosidade</option>
           <option>💬 Bate-papo</option>
         </select>
       </div>
@@ -2845,16 +2854,21 @@ const POST_CATS = {
   comemoracao: '🎉 Comemoração',
   luto:        '💔 Luto pet',
   dica:        '💡 Dica',
-  pergunta:    '❓ Pergunta',
+  curiosidade: '🔎 Curiosidade',
+  pergunta:    '🔎 Curiosidade',   // legado: posts antigos não migrados
   batepapo:    '💬 Bate-papo'
 };
 // Texto da opção do <select> → slug guardado no banco
 const POST_CAT_SLUG = {
   '🎉 Comemoração':'comemoracao', '💔 Luto pet':'luto', '💡 Dica':'dica',
-  '❓ Pergunta':'pergunta', '💬 Bate-papo':'batepapo'
+  '🔎 Curiosidade':'curiosidade', '💬 Bate-papo':'batepapo'
 };
 let feedPosts = [];        // cache dos posts carregados
 let feedFiltro = null;     // categoria atual (null = todos)
+let feedReacoes = {};      // post_id -> { curtir:n, amei:n, minhas:Set('curtir'|'amei') }
+let feedComentCount = {};  // post_id -> nº de comentários
+let podePublicar = false;  // gate: plano pago / co-tutor (grátis = só leitura)
+let comentCache = {};      // post_id -> array de comentários carregados (thread aberta)
 
 function escapeHtml(s){
   return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -2873,6 +2887,10 @@ function tempoRelativo(iso){
 async function loadFeed(){
   const box = document.getElementById('feed-comunidade');
   if(!box) return;
+  // Gate de escrita (plano pago / co-tutor). Grátis lê tudo, mas não escreve.
+  try { podePublicar = await acessoFamiliaPaga(); } catch(e){ podePublicar = false; }
+  aplicarGateComunidade();
+
   const { data, error } = await supabase
     .from('posts').select('*').order('criado_em', { ascending:false }).limit(100);
   if(error){
@@ -2883,8 +2901,36 @@ async function loadFeed(){
     return;
   }
   feedPosts = data || [];
+
+  // Carrega reações e contagem de comentários dos posts visíveis (2 consultas).
+  feedReacoes = {}; feedComentCount = {}; comentCache = {};
+  const ids = feedPosts.map(p => p.id);
+  if(ids.length){
+    try {
+      const [rRe, rCo] = await Promise.all([
+        supabase.from('post_reacoes').select('post_id,tutor_id,tipo').in('post_id', ids),
+        supabase.from('post_comentarios').select('post_id').in('post_id', ids)
+      ]);
+      (rRe.data || []).forEach(r => {
+        const m = feedReacoes[r.post_id] || (feedReacoes[r.post_id] = { curtir:0, amei:0, minhas:new Set() });
+        if(r.tipo === 'curtir') m.curtir++; else if(r.tipo === 'amei') m.amei++;
+        if(currentUser && r.tutor_id === currentUser.id) m.minhas.add(r.tipo);
+      });
+      (rCo.data || []).forEach(c => { feedComentCount[c.post_id] = (feedComentCount[c.post_id]||0) + 1; });
+    } catch(e){ /* feed ainda renderiza sem interações */ }
+  }
   renderFeed();
 }
+
+// Mostra/oculta o botão de publicar e o aviso conforme o gate (grátis = leitura).
+function aplicarGateComunidade(){
+  const btn = document.getElementById('btn-novo-post');
+  if(btn) btn.style.display = podePublicar ? '' : 'none';
+  const aviso = document.getElementById('comunidade-gate');
+  if(aviso) aviso.style.display = podePublicar ? 'none' : 'flex';
+}
+
+function reacaoDe(id){ return feedReacoes[id] || { curtir:0, amei:0, minhas:new Set() }; }
 
 function renderFeed(){
   const box = document.getElementById('feed-comunidade');
@@ -2897,6 +2943,7 @@ function renderFeed(){
       <div style="font-size:.85rem;color:var(--ink-soft)">${feedFiltro ? 'Tente outra categoria ou seja o primeiro a publicar aqui.' : 'Seja o primeiro a compartilhar uma história com a comunidade.'}</div></div>`;
     return;
   }
+  const isAdmin = currentProfile?.is_admin === true;
   box.innerHTML = lista.map(p => {
     const meu = currentUser && p.tutor_id === currentUser.id;
     const nome = escapeHtml((p.autor_nome || 'Tutor(a)').split(' ')[0]);
@@ -2914,12 +2961,35 @@ function renderFeed(){
           <div style="font-weight:600;font-size:.92rem;color:var(--ink)">${nome}${meu?' <span style="font-size:.7rem;color:var(--violet);font-weight:600">(você)</span>':''}</div>
           <div style="font-size:.75rem;color:var(--ink-soft)">${escapeHtml(cat)} · ${tempoRelativo(p.criado_em)}</div>
         </div>
-        ${meu?`<button class="btn btn-secondary btn-sm" title="Excluir publicação" onclick="excluirPost('${p.id}')">🗑</button>`:''}
+        ${(meu||isAdmin)?`<button class="btn btn-secondary btn-sm" title="Excluir publicação${isAdmin&&!meu?' (admin)':''}" onclick="excluirPost('${p.id}')">🗑</button>`:''}
       </div>
       <div style="font-size:.92rem;color:var(--ink-mid);line-height:1.7;white-space:pre-wrap">${escapeHtml(p.texto)}</div>
       ${midia}
+      ${barraAcoesHtml(p)}
+      <div id="coments-${p.id}" class="coments-wrap" style="display:none;margin-top:14px;border-top:1px solid rgba(0,0,0,.06);padding-top:14px"></div>
     </div>`;
   }).join('');
+}
+
+// Barra de ações de um post: 👍 curtir · ❤️ amei · 💬 comentários · ↗️ enviar
+function barraAcoesHtml(p){
+  const r = reacaoDe(p.id);
+  const cC = feedComentCount[p.id] || 0;
+  const onC = r.minhas.has('curtir'), onA = r.minhas.has('amei');
+  return `<div style="display:flex;gap:6px;align-items:center;margin-top:14px;flex-wrap:wrap">
+    <button class="feed-acao" id="btn-curtir-${p.id}" onclick="toggleReacao('${p.id}','curtir')"
+      style="display:flex;align-items:center;gap:5px;background:${onC?'rgba(124,47,214,.12)':'transparent'};border:1px solid ${onC?'var(--violet)':'rgba(0,0,0,.1)'};color:${onC?'var(--violet)':'var(--ink-soft)'};border-radius:20px;padding:6px 12px;font-size:.82rem;font-weight:600;cursor:pointer">
+      👍 <span id="cnt-curtir-${p.id}">${r.curtir}</span></button>
+    <button class="feed-acao" id="btn-amei-${p.id}" onclick="toggleReacao('${p.id}','amei')"
+      style="display:flex;align-items:center;gap:5px;background:${onA?'rgba(214,47,90,.12)':'transparent'};border:1px solid ${onA?'#D62F5A':'rgba(0,0,0,.1)'};color:${onA?'#D62F5A':'var(--ink-soft)'};border-radius:20px;padding:6px 12px;font-size:.82rem;font-weight:600;cursor:pointer">
+      ❤️ <span id="cnt-amei-${p.id}">${r.amei}</span></button>
+    <button class="feed-acao" onclick="abrirComentarios('${p.id}')"
+      style="display:flex;align-items:center;gap:5px;background:transparent;border:1px solid rgba(0,0,0,.1);color:var(--ink-soft);border-radius:20px;padding:6px 12px;font-size:.82rem;font-weight:600;cursor:pointer">
+      💬 <span id="cnt-coment-${p.id}">${cC}</span></button>
+    <button class="feed-acao" onclick="compartilharPost('${p.id}')"
+      style="display:flex;align-items:center;gap:5px;background:transparent;border:1px solid rgba(0,0,0,.1);color:var(--ink-soft);border-radius:20px;padding:6px 12px;font-size:.82rem;font-weight:600;cursor:pointer">
+      ↗️ Enviar</button>
+  </div>`;
 }
 
 function filtrarFeed(cat, btn){
@@ -2933,6 +3003,7 @@ function filtrarFeed(cat, btn){
 
 async function salvarPost(){
   if(!currentUser){ alert('Faça login para publicar.'); return; }
+  if(!await exigirPlanoPago('publicar na comunidade')) return;
   const catSel = document.querySelector('#modal-post select');
   const texto  = document.querySelector('#modal-post textarea').value.trim();
   if(!texto){ alert('Escreva algo para compartilhar.'); return; }
@@ -2976,6 +3047,183 @@ async function excluirPost(id){
   if(error){ alert('Erro ao excluir: ' + error.message); return; }
   feedPosts = feedPosts.filter(p => p.id !== id);
   renderFeed();
+}
+
+// ── Gate: exige plano pago (revalida; oferece ver planos) ──
+async function exigirPlanoPago(acao){
+  if(podePublicar) return true;
+  try { podePublicar = await acessoFamiliaPaga(); } catch(e){}
+  if(podePublicar){ aplicarGateComunidade(); return true; }
+  if(confirm('No plano Livre você pode ler tudo, mas para ' + acao + ' é preciso um plano pago.\n\nVer os planos agora?')){
+    closeModal('modal-post'); openModal('modal-planos');
+  }
+  return false;
+}
+
+// ── Reações (👍 curtir / ❤️ amei): toggle otimista + DOM ──
+async function toggleReacao(postId, tipo){
+  if(!currentUser){ alert('Faça login para reagir.'); return; }
+  if(!await exigirPlanoPago('reagir às publicações')) return;
+  const r = feedReacoes[postId] || (feedReacoes[postId] = { curtir:0, amei:0, minhas:new Set() });
+  const tinha = r.minhas.has(tipo);
+  if(tinha){
+    r.minhas.delete(tipo); r[tipo] = Math.max(0, r[tipo]-1); atualizarBotaoReacao(postId, tipo);
+    const { error } = await supabase.from('post_reacoes').delete()
+      .eq('post_id', postId).eq('tutor_id', currentUser.id).eq('tipo', tipo);
+    if(error){ r.minhas.add(tipo); r[tipo]++; atualizarBotaoReacao(postId, tipo); alert('Erro: ' + error.message); }
+  } else {
+    r.minhas.add(tipo); r[tipo]++; atualizarBotaoReacao(postId, tipo);
+    const { error } = await supabase.from('post_reacoes')
+      .insert({ post_id: postId, tutor_id: currentUser.id, tipo });
+    if(error){ r.minhas.delete(tipo); r[tipo] = Math.max(0, r[tipo]-1); atualizarBotaoReacao(postId, tipo); alert('Erro: ' + error.message); }
+  }
+}
+
+function atualizarBotaoReacao(postId, tipo){
+  const r = reacaoDe(postId);
+  const cnt = document.getElementById('cnt-' + tipo + '-' + postId);
+  if(cnt) cnt.textContent = r[tipo];
+  const btn = document.getElementById('btn-' + tipo + '-' + postId);
+  if(btn){
+    const on  = r.minhas.has(tipo);
+    const cor = tipo === 'curtir' ? 'var(--violet)' : '#D62F5A';
+    const bg  = tipo === 'curtir' ? 'rgba(124,47,214,.12)' : 'rgba(214,47,90,.12)';
+    btn.style.background  = on ? bg : 'transparent';
+    btn.style.borderColor = on ? cor : 'rgba(0,0,0,.1)';
+    btn.style.color       = on ? cor : 'var(--ink-soft)';
+  }
+}
+
+// ── Comentários: abrir thread, renderizar, responder, excluir ──
+async function abrirComentarios(postId){
+  const wrap = document.getElementById('coments-' + postId);
+  if(!wrap) return;
+  if(wrap.style.display !== 'none'){ wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+  wrap.innerHTML = '<div style="font-size:.82rem;color:var(--ink-soft)">Carregando comentários…</div>';
+  const { data, error } = await supabase.from('post_comentarios')
+    .select('*').eq('post_id', postId).order('criado_em', { ascending:true });
+  if(error){ wrap.innerHTML = '<div style="font-size:.82rem;color:#c0392b">Erro ao carregar: ' + escapeHtml(error.message) + '</div>'; return; }
+  comentCache[postId] = data || [];
+  feedComentCount[postId] = comentCache[postId].length;
+  const cnt = document.getElementById('cnt-coment-' + postId); if(cnt) cnt.textContent = feedComentCount[postId];
+  renderComentarios(postId);
+}
+
+function renderComentarios(postId){
+  const wrap = document.getElementById('coments-' + postId);
+  if(!wrap) return;
+  const isAdmin = currentProfile?.is_admin === true;
+  const lista = comentCache[postId] || [];
+  const top = lista.filter(c => !c.parent_id);
+  const filhosDe = id => lista.filter(c => c.parent_id === id);
+  let html = top.length
+    ? top.map(c => comentarioHtml(c, postId, isAdmin, filhosDe(c.id))).join('')
+    : '<div style="font-size:.82rem;color:var(--ink-soft);margin-bottom:10px">Seja o primeiro a comentar.</div>';
+  if(podePublicar){
+    html += `<div style="display:flex;gap:8px;margin-top:10px">
+      <input id="cinput-${postId}" class="select-input" style="flex:1" placeholder="Escreva um comentário…" onkeydown="if(event.key==='Enter')enviarComentario('${postId}',null,'cinput-${postId}')"/>
+      <button class="btn btn-primary btn-sm" onclick="enviarComentario('${postId}',null,'cinput-${postId}')">Enviar</button>
+    </div>`;
+  } else {
+    html += '<div style="font-size:.8rem;color:var(--ink-soft);margin-top:8px">🔒 Assine um plano para comentar.</div>';
+  }
+  wrap.innerHTML = html;
+}
+
+function comentarioHtml(c, postId, isAdmin, filhos){
+  const meu = currentUser && c.tutor_id === currentUser.id;
+  const nome = escapeHtml((c.autor_nome || 'Tutor(a)').split(' ')[0]);
+  const inicial = (nome[0]||'·').toUpperCase();
+  const respostas = (filhos||[]).map(f => comentarioHtml(f, postId, isAdmin, [])).join('');
+  return `<div style="margin-bottom:10px">
+    <div style="display:flex;gap:8px;align-items:flex-start">
+      <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#7C2FD6,#19B6C4);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.75rem;flex-shrink:0">${inicial}</div>
+      <div style="flex:1;min-width:0;background:rgba(0,0,0,.03);border-radius:12px;padding:8px 12px">
+        <div style="font-size:.8rem"><span style="font-weight:600;color:var(--ink)">${nome}</span> <span style="color:var(--ink-soft);font-size:.72rem">· ${tempoRelativo(c.criado_em)}</span></div>
+        <div style="font-size:.85rem;color:var(--ink-mid);line-height:1.5;white-space:pre-wrap;margin-top:2px">${escapeHtml(c.texto)}</div>
+        <div style="display:flex;gap:14px;margin-top:4px">
+          ${podePublicar?`<button onclick="mostrarRespostaBox('${postId}','${c.id}')" style="background:none;border:none;color:var(--violet);font-size:.74rem;font-weight:600;cursor:pointer;padding:0">Responder</button>`:''}
+          ${(meu||isAdmin)?`<button onclick="excluirComentario('${c.id}','${postId}')" style="background:none;border:none;color:var(--ink-soft);font-size:.74rem;cursor:pointer;padding:0">Excluir${isAdmin&&!meu?' (admin)':''}</button>`:''}
+        </div>
+        <div id="rbox-${c.id}"></div>
+      </div>
+    </div>
+    ${respostas?`<div style="margin-left:38px;margin-top:8px">${respostas}</div>`:''}
+  </div>`;
+}
+
+function mostrarRespostaBox(postId, parentId){
+  const box = document.getElementById('rbox-' + parentId);
+  if(!box) return;
+  if(box.innerHTML){ box.innerHTML = ''; return; }
+  box.innerHTML = `<div style="display:flex;gap:8px;margin-top:8px">
+    <input id="rinput-${parentId}" class="select-input" style="flex:1" placeholder="Responder…" onkeydown="if(event.key==='Enter')enviarComentario('${postId}','${parentId}','rinput-${parentId}')"/>
+    <button class="btn btn-primary btn-sm" onclick="enviarComentario('${postId}','${parentId}','rinput-${parentId}')">Responder</button>
+  </div>`;
+  const inp = document.getElementById('rinput-' + parentId); if(inp) inp.focus();
+}
+
+async function enviarComentario(postId, parentId, inputId){
+  if(!currentUser){ alert('Faça login para comentar.'); return; }
+  if(!await exigirPlanoPago('comentar')) return;
+  const inp = document.getElementById(inputId);
+  const texto = (inp?.value || '').trim();
+  if(!texto) return;
+  inp.disabled = true;
+  const { data, error } = await supabase.from('post_comentarios').insert({
+    post_id: postId, parent_id: parentId || null, tutor_id: currentUser.id,
+    autor_nome: (currentProfile?.nome || currentUser.email || 'Tutor(a)'), texto
+  }).select().single();
+  if(inp) inp.disabled = false;
+  if(error){ alert('Erro ao comentar: ' + error.message); return; }
+  (comentCache[postId] = comentCache[postId] || []).push(data);
+  feedComentCount[postId] = (feedComentCount[postId]||0) + 1;
+  const cnt = document.getElementById('cnt-coment-' + postId); if(cnt) cnt.textContent = feedComentCount[postId];
+  renderComentarios(postId);
+}
+
+async function excluirComentario(id, postId){
+  if(!confirm('Excluir este comentário?')) return;
+  const { error } = await supabase.from('post_comentarios').delete().eq('id', id);
+  if(error){ alert('Erro ao excluir: ' + error.message); return; }
+  // remove o comentário e seus filhos do cache (espelha o cascade do banco)
+  const lista = comentCache[postId] || [];
+  const remover = new Set([id]);
+  let mudou = true;
+  while(mudou){ mudou = false; lista.forEach(c => { if(c.parent_id && remover.has(c.parent_id) && !remover.has(c.id)){ remover.add(c.id); mudou = true; } }); }
+  comentCache[postId] = lista.filter(c => !remover.has(c.id));
+  feedComentCount[postId] = comentCache[postId].length;
+  const cnt = document.getElementById('cnt-coment-' + postId); if(cnt) cnt.textContent = feedComentCount[postId];
+  renderComentarios(postId);
+}
+
+// ── Compartilhar (divulga a landing do Patinha Viva): WhatsApp + Facebook ──
+function compartilharPost(postId){
+  const p = feedPosts.find(x => x.id === postId);
+  const url = 'https://patinhaviva.com.br';
+  const txt = p ? (p.texto || '') : '';
+  const trecho = txt.slice(0, 160);
+  const msg = (trecho ? '"' + trecho + (txt.length > 160 ? '…' : '') + '"\n\n' : '') +
+              'Vi na comunidade do Patinha Viva 🐾 — o app que guarda as memórias e a saúde do seu pet. Conheça: ' + url;
+  const wa = 'https://wa.me/?text=' + encodeURIComponent(msg);
+  const fb = 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(url);
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML = `<div style="background:#fff;border-radius:18px;padding:22px;max-width:340px;width:100%;text-align:center">
+    <div style="font-family:'Lora',serif;font-size:1.1rem;color:var(--ink);margin-bottom:4px">Enviar publicação</div>
+    <div style="font-size:.8rem;color:var(--ink-soft);margin-bottom:16px">Ajude a divulgar o Patinha Viva 🐾</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <a href="${wa}" target="_blank" rel="noopener" style="text-decoration:none;background:#25D366;color:#fff;border-radius:12px;padding:12px;font-weight:600">📲 WhatsApp</a>
+      <a href="${fb}" target="_blank" rel="noopener" style="text-decoration:none;background:#1877F2;color:#fff;border-radius:12px;padding:12px;font-weight:600">📘 Facebook</a>
+      <button type="button" style="background:none;border:none;color:var(--ink-soft);font-size:.85rem;cursor:pointer;margin-top:4px">Cancelar</button>
+    </div>
+  </div>`;
+  const fechar = () => ov.remove();
+  ov.addEventListener('click', e => { if(e.target === ov) fechar(); });
+  ov.querySelector('button').addEventListener('click', fechar);
+  ov.querySelectorAll('a').forEach(a => a.addEventListener('click', () => setTimeout(fechar, 120)));
+  document.body.appendChild(ov);
 }
 
 // Verificar sessão ao carregar
