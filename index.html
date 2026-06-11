@@ -707,6 +707,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
         <div class="page-title">Álbum 🖼️</div>
         <div class="page-subtitle">As fotos da sua família, reunidas num só lugar ✨</div>
       </div>
+      <div id="album-debug" style="font-size:.74rem;color:#c0398a;margin:0 0 12px;font-family:monospace">debug: página carregada — renderAlbum() ainda não rodou</div>
 
       <!-- GATE: plano sem acesso -->
       <div id="album-gate" class="card" style="display:none;text-align:center;padding:44px 24px;max-width:640px;margin:0 auto">
@@ -4098,12 +4099,14 @@ async function renderAlbum(){
   const main=document.getElementById('album-main');
   const grid=document.getElementById('album-grid');
   const vazio=document.getElementById('album-vazio');
+  const DBG=document.getElementById('album-debug');
+  const dbg=(t)=>{ if(DBG) DBG.textContent='debug: '+t; };
   if(gate) gate.style.display='none';
   if(main) main.style.display='none';
-  console.log('[album] start; plano=', (currentProfile&&currentProfile.plano), 'main?', !!main, 'grid?', !!grid, 'pets=', (typeof userPets!=='undefined'&&userPets?userPets.length:'n/a'));
+  dbg('renderAlbum() RODOU; plano='+(currentProfile&&currentProfile.plano)+' main?'+(!!main)+' grid?'+(!!grid)+' pets='+(typeof userPets!=='undefined'&&userPets?userPets.length:'n/a'));
   try{
     const _ac=await acessoFamiliaPaga();
-    console.log('[album] acessoFamiliaPaga=', _ac);
+    dbg('acessoFamiliaPaga='+_ac);
     if(!_ac){ if(gate) gate.style.display='block'; return; }
     if(main) main.style.display='block';
 
@@ -4121,7 +4124,7 @@ async function renderAlbum(){
       .order('data_memoria',{ascending:false});
     if(error) throw new Error(error.message||'consulta de memórias');
     mems=data||[];
-    console.log('[album] mems com foto=', mems.length, 'erro=', error);
+    dbg('memorias com foto='+mems.length+' | pets='+pets.length);
 
     albumFotos=[];
     // Fotos de perfil dos pets (capas) primeiro
@@ -4135,10 +4138,12 @@ async function renderAlbum(){
     });
 
     albumFiltro='todos';
+    dbg('OK: '+albumFotos.length+' fotos no álbum (renderizando grade)');
     albumRenderChips();
     albumRenderGrid();
   }catch(e){
     if(main) main.style.display='block';
+    dbg('ERRO: '+((e&&e.message)?e.message:e));
     if(grid) grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:22px;color:var(--rose);font-size:.85rem">Não foi possível carregar o álbum.<br><span style="color:var(--ink-soft)">'+((e&&e.message)?e.message:e)+'</span></div>';
     console.error('renderAlbum:', e);
   }
