@@ -468,6 +468,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
     <div class="sidebar-logo">
       <img src="icon-192.png" alt="Patinha Viva" width="36" height="36" style="border-radius:9px;display:block;flex-shrink:0"/>
       <div class="sidebar-logo-name">Patinha <span>Viva</span></div>
+      <button class="js-sino" onclick="abrirSino()" title="Notificações" style="position:relative;margin-left:auto;background:none;border:none;cursor:pointer;font-size:1.3rem;padding:2px;line-height:1">🔔<span class="sino-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#F0284A;color:#fff;font-size:.6rem;font-weight:700;min-width:16px;height:16px;border-radius:8px;align-items:center;justify-content:center;padding:0 3px">0</span></button>
     </div>
 
     <nav class="sidebar-nav">
@@ -531,7 +532,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
   <header class="header-mobile">
     <button class="btn-menu" onclick="toggleSidebar()">☰</button>
     <div class="header-logo">Patinha <span>Viva</span></div>
-    <div style="width:32px"></div>
+    <button class="js-sino" onclick="abrirSino()" title="Notificações" style="position:relative;background:none;border:none;cursor:pointer;font-size:1.4rem;padding:2px;line-height:1;width:32px">🔔<span class="sino-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#F0284A;color:#fff;font-size:.6rem;font-weight:700;min-width:16px;height:16px;border-radius:8px;align-items:center;justify-content:center;padding:0 3px">0</span></button>
   </header>
 
   <!-- Bottom nav mobile -->
@@ -1963,6 +1964,12 @@ async function initApp(user) {
     const pend = sessionStorage.getItem('pv_convite');
     if(pend){ sessionStorage.removeItem('pv_convite'); await aceitarConviteFamilia(pend); }
   } catch(e){}
+
+  // Sininho 🔔: carrega notificações no boot e atualiza a cada 60s
+  carregarNotificacoes();
+  if(!window._sinoPoll){
+    window._sinoPoll = setInterval(() => { if(currentUser) carregarNotificacoes(); }, 60000);
+  }
 }
 
 function renderPlano(profile){
@@ -2955,7 +2962,7 @@ function renderFeed(){
           ? `<video src="${encodeURI(p.foto_url)}" controls playsinline style="width:100%;border-radius:12px;margin-top:12px;max-height:420px;background:#000"></video>`
           : `<img src="${encodeURI(p.foto_url)}" style="width:100%;border-radius:12px;margin-top:12px;object-fit:cover"/>`)
       : '';
-    return `<div class="card" style="margin-bottom:16px">
+    return `<div class="card" id="post-${p.id}" style="margin-bottom:16px">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
         <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#7C2FD6,#19B6C4);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700">${inicial}</div>
         <div style="flex:1;min-width:0">
@@ -3227,6 +3234,139 @@ function compartilharPost(postId){
   document.body.appendChild(ov);
 }
 
+// ══════════════════════════════════════════════════════════
+//  SININHO 🔔 — 🅰️ novos posts no feed + 🅱️ interações nos meus posts
+// ══════════════════════════════════════════════════════════
+let notifState = { lista: [], naoLidas: 0, novosPosts: 0, novosAutores: [] };
+
+function comVisitaKey(){ return 'pv_com_visita_' + (currentUser?.id || 'anon'); }
+function comUltimaVisita(){ try { return localStorage.getItem(comVisitaKey()); } catch(e){ return null; } }
+function marcarVisitaComunidade(){
+  try { localStorage.setItem(comVisitaKey(), new Date().toISOString()); } catch(e){}
+  notifState.novosPosts = 0;
+  atualizarBadgeSino();
+}
+
+async function carregarNotificacoes(){
+  if(!currentUser) return;
+  // 🅱️ interações nos meus posts
+  try {
+    const { data } = await supabase.from('post_notificacoes')
+      .select('*').eq('destinatario_id', currentUser.id)
+      .order('criado_em', { ascending:false }).limit(50);
+    notifState.lista = data || [];
+    notifState.naoLidas = notifState.lista.filter(n => !n.lida).length;
+  } catch(e){ notifState.lista = []; notifState.naoLidas = 0; }
+  // 🅰️ novos posts no feed desde a última visita (de outros tutores)
+  try {
+    const desde = comUltimaVisita();
+    if(desde){
+      const { data: novos } = await supabase.from('posts')
+        .select('autor_nome,criado_em').gt('criado_em', desde).neq('tutor_id', currentUser.id)
+        .order('criado_em', { ascending:false }).limit(30);
+      notifState.novosAutores = novos || [];
+      notifState.novosPosts = notifState.novosAutores.length;
+    } else {
+      marcarVisitaComunidade();   // 1ª vez: não conta o histórico como "novo"
+    }
+  } catch(e){ notifState.novosPosts = 0; notifState.novosAutores = []; }
+  atualizarBadgeSino();
+}
+
+function atualizarBadgeSino(){
+  const total = (notifState.naoLidas || 0) + (notifState.novosPosts || 0);
+  document.querySelectorAll('.sino-badge').forEach(b => {
+    if(total > 0){ b.textContent = total > 99 ? '99+' : String(total); b.style.display = 'flex'; }
+    else { b.style.display = 'none'; }
+  });
+}
+
+function notifVerbo(n){
+  if(n.tipo === 'curtir')     return 'curtiu sua publicação 👍';
+  if(n.tipo === 'amei')       return 'amou sua publicação ❤️';
+  if(n.tipo === 'comentario') return 'comentou na sua publicação 💬';
+  if(n.tipo === 'resposta')   return 'respondeu seu comentário ↩️';
+  return 'interagiu com você';
+}
+
+async function abrirSino(){
+  await carregarNotificacoes();
+  const novos = notifState.novosPosts || 0;
+  const lista = notifState.lista || [];
+  let itens = '';
+  if(novos > 0){
+    const aut = escapeHtml((notifState.novosAutores[0] && notifState.novosAutores[0].autor_nome) || 'Alguém');
+    const txt = novos === 1
+      ? `<b style="color:var(--ink)">${aut}</b> publicou na comunidade`
+      : `<b style="color:var(--ink)">${aut}</b> e mais ${novos-1} publicaram na comunidade`;
+    itens += `<button onclick="sinoIrComunidade()" style="display:flex;width:100%;text-align:left;gap:10px;align-items:center;background:rgba(124,47,214,.08);border:none;border-radius:12px;padding:12px;cursor:pointer;margin-bottom:8px">
+      <span style="font-size:1.3rem">🆕</span>
+      <span style="font-size:.88rem;color:var(--ink-mid);line-height:1.4">${txt}</span>
+    </button>`;
+  }
+  if(lista.length){
+    itens += lista.map(n => {
+      const nome = escapeHtml(n.ator_nome || 'Alguém');
+      const ini = (nome[0]||'·').toUpperCase();
+      return `<button onclick="notifClicar('${n.post_id}','${n.tipo}')" style="display:flex;width:100%;text-align:left;gap:10px;align-items:flex-start;background:${n.lida?'transparent':'rgba(25,182,196,.08)'};border:none;border-bottom:1px solid rgba(0,0,0,.05);padding:10px 8px;cursor:pointer">
+        <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#7C2FD6,#19B6C4);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.78rem;flex-shrink:0">${ini}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.85rem;color:var(--ink-mid);line-height:1.4"><span style="font-weight:600;color:var(--ink)">${nome}</span> ${notifVerbo(n)}</div>
+          <div style="font-size:.72rem;color:var(--ink-soft)">${tempoRelativo(n.criado_em)}</div>
+        </div>
+        ${n.lida?'':'<span style="width:8px;height:8px;border-radius:50%;background:var(--teal);flex-shrink:0;margin-top:6px"></span>'}
+      </button>`;
+    }).join('');
+  }
+  if(!itens){
+    itens = '<div style="text-align:center;padding:30px 16px;color:var(--ink-soft)"><div style="font-size:2rem;margin-bottom:8px">🔔</div><div style="font-size:.85rem">Nenhuma notificação por enquanto.</div></div>';
+  }
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:60px 16px 16px';
+  ov.innerHTML = `<div style="background:#fff;border-radius:18px;max-width:420px;width:100%;max-height:80vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,.2)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid rgba(0,0,0,.06);position:sticky;top:0;background:#fff">
+      <div style="font-family:'Lora',serif;font-size:1.1rem;color:var(--ink)">Notificações 🔔</div>
+      <button type="button" style="background:none;border:none;font-size:1.1rem;color:var(--ink-soft);cursor:pointer">✕</button>
+    </div>
+    <div style="padding:12px 14px">${itens}</div>
+  </div>`;
+  const fechar = () => { ov.remove(); if(window._sinoOverlay === ov) window._sinoOverlay = null; };
+  ov.addEventListener('click', e => { if(e.target === ov) fechar(); });
+  ov.querySelector('button[type=button]').addEventListener('click', fechar);
+  document.body.appendChild(ov);
+  window._sinoOverlay = ov;
+  await marcarNotificacoesLidas();   // interações viram lidas (novos posts só zeram ao visitar a comunidade)
+}
+
+async function marcarNotificacoesLidas(){
+  if(!currentUser || !notifState.naoLidas){ atualizarBadgeSino(); return; }
+  try {
+    await supabase.from('post_notificacoes').update({ lida:true })
+      .eq('destinatario_id', currentUser.id).eq('lida', false);
+  } catch(e){}
+  notifState.lista.forEach(n => n.lida = true);
+  notifState.naoLidas = 0;
+  atualizarBadgeSino();
+}
+
+function sinoIrComunidade(){
+  if(window._sinoOverlay){ window._sinoOverlay.remove(); window._sinoOverlay = null; }
+  navigate('comunidade');
+}
+
+function notifClicar(postId, tipo){
+  if(window._sinoOverlay){ window._sinoOverlay.remove(); window._sinoOverlay = null; }
+  navigate('comunidade');
+  setTimeout(() => {
+    const el = document.getElementById('post-' + postId);
+    if(el) el.scrollIntoView({ behavior:'smooth', block:'center' });
+    if(tipo === 'comentario' || tipo === 'resposta'){
+      const wrap = document.getElementById('coments-' + postId);
+      if(wrap && wrap.style.display === 'none') abrirComentarios(postId);
+    }
+  }, 650);
+}
+
 // Verificar sessão ao carregar
 window.addEventListener('load', async () => {
   // Se voltamos pelo link de redefinição, mostra a tela de nova senha (não entra no app)
@@ -3301,6 +3441,7 @@ function navigate(page) {
   }
   if(page === 'comunidade'){
     loadFeed();
+    marcarVisitaComunidade();   // zera o contador de "novos posts" do sininho
   }
   if(page === 'admin'){
     renderAdmin();
