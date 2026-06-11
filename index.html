@@ -481,6 +481,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
         <button class="nav-item" onclick="navigate('memorial')">
           <span class="nav-icon">♡</span> Memorial
         </button>
+        <button class="nav-item" onclick="navigate('album')">
+          <span class="nav-icon">🖼️</span> Álbum
+        </button>
         <button class="nav-item" onclick="navigate('livro')">
           <span class="nav-icon">📖</span> Livro de Memórias
         </button>
@@ -699,6 +702,41 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
     </div>
 
     <!-- TESTAMENTO PET (Planejamento Sucessório) -->
+    <div class="page" id="page-album">
+      <div class="page-header">
+        <div class="page-title">Álbum 🖼️</div>
+        <div class="page-subtitle">As fotos da sua família, reunidas num só lugar ✨</div>
+      </div>
+
+      <!-- GATE: plano sem acesso -->
+      <div id="album-gate" class="card" style="display:none;text-align:center;padding:44px 24px;max-width:640px;margin:0 auto">
+        <div style="font-size:3rem;margin-bottom:12px">🖼️</div>
+        <div style="font-family:'Lora',serif;font-size:1.25rem;font-weight:700;color:var(--ink);margin-bottom:10px">Recurso dos planos pagos</div>
+        <p style="font-size:.88rem;color:var(--ink-mid);line-height:1.7;margin-bottom:18px">O <b>Álbum compartilhado</b> reúne todas as fotos da sua família num só lugar, com filtro por pet — visível para os dois tutores da conta. Disponível nos planos <b>Premium</b>, <b>Duo</b> e <b>Família</b>.</p>
+        <button class="btn btn-primary" onclick="navigate('plano')">Ver planos</button>
+      </div>
+
+      <!-- MAIN -->
+      <div id="album-main" style="display:none">
+        <div id="album-filtros" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px"></div>
+        <div id="album-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:8px"></div>
+        <div id="album-vazio" style="display:none;text-align:center;padding:40px 20px;color:var(--ink-soft)">
+          <div style="font-size:2.6rem;margin-bottom:10px">📸</div>
+          <div>Nenhuma foto ainda. As fotos das memórias da sua família aparecem aqui.</div>
+          <button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="navigate('memorial')">Ir para o Memorial</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- LIGHTBOX do Álbum -->
+    <div id="album-lightbox" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(20,16,24,.92);align-items:center;justify-content:center;padding:20px" onclick="albumFechar(event)">
+      <button onclick="albumFechar()" style="position:absolute;top:16px;right:20px;background:rgba(255,255,255,.12);border:none;color:#fff;font-size:1.4rem;width:42px;height:42px;border-radius:50%;cursor:pointer">×</button>
+      <div style="max-width:900px;width:100%;max-height:92vh;display:flex;flex-direction:column;align-items:center" onclick="event.stopPropagation()">
+        <div id="album-lb-media" style="width:100%;display:flex;justify-content:center;align-items:center;min-height:0;flex:1"></div>
+        <div id="album-lb-info" style="width:100%;margin-top:14px;color:#fff"></div>
+      </div>
+    </div>
+
     <div class="page" id="page-livro">
       <div class="page-header">
         <div class="page-title">Livro de Memórias 📖</div>
@@ -3012,6 +3050,9 @@ function navigate(page) {
   if(page === 'livro'){
     renderLivro();
   }
+  if(page === 'album'){
+    renderAlbum();
+  }
 }
 
 // ── ADMIN (métricas agregadas via RPC com checagem de is_admin) ──
@@ -3764,7 +3805,7 @@ const LIVRO_PLANOS = { premium:true, duo:true, familia:true };
 let livroBusy = false;
 let livroPreviewCache = { petId:null, memorias:[] };
 
-function renderLivro(){
+async function renderLivro(){
   const gate=document.getElementById('livro-gate');
   const main=document.getElementById('livro-main');
   const sel=document.getElementById('livro-pet-select');
@@ -4038,6 +4079,140 @@ async function livroGerar(){
     livroBusy=false;
     if(btn){ btn.disabled=false; btn.textContent='📖 Gerar Livro de Memórias (PDF)'; }
   }
+}
+
+// ====== ÁLBUM COMPARTILHADO (galeria agregada das fotos da família) ======
+let albumFotos=[];     // [{url, petId, petNome, titulo, data, descricao, isVideo, isPerfil, memoriaId}]
+let albumFiltro='todos';
+
+// Acesso pago OU co-tutor (membro só existe em família paga). Reusa LIVRO_PLANOS.
+async function acessoFamiliaPaga(){
+  const plano=(currentProfile?.plano||'livre').toLowerCase();
+  if(LIVRO_PLANOS[plano]) return true;
+  if(!familiaInfo){ try{ await carregarFamiliaInfo(); }catch(e){} }
+  return !!(familiaInfo && familiaInfo.papel==='membro');
+}
+
+async function renderAlbum(){
+  const gate=document.getElementById('album-gate');
+  const main=document.getElementById('album-main');
+  const grid=document.getElementById('album-grid');
+  const vazio=document.getElementById('album-vazio');
+  if(gate) gate.style.display='none';
+  if(main) main.style.display='none';
+  try{
+    const _ac=await acessoFamiliaPaga();
+    if(!_ac){ if(gate) gate.style.display='block'; return; }
+    if(main) main.style.display='block';
+
+    if(grid) grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:24px;color:var(--ink-soft);font-size:.85rem">Carregando fotos…</div>';
+    if(vazio) vazio.style.display='none';
+
+    const pets=(userPets||[]);
+    const petById={}; pets.forEach(p=>petById[p.id]=p);
+
+    // Fotos das memórias (compartilhadas pela família via RLS minha_familia())
+    let mems=[];
+    const { data, error } = await supabase.from('memorias')
+      .select('id,pet_id,titulo,descricao,tipo,foto_url,data_memoria')
+      .not('foto_url','is',null)
+      .order('data_memoria',{ascending:false});
+    if(error) throw new Error(error.message||'consulta de memórias');
+    mems=data||[];
+
+    albumFotos=[];
+    // Fotos de perfil dos pets (capas) primeiro
+    pets.forEach(p=>{
+      if(p.foto_url) albumFotos.push({ url:p.foto_url, petId:p.id, petNome:p.nome||'Pet', titulo:'Foto de perfil', data:null, descricao:'', isVideo:ehUrlVideo(p.foto_url), isPerfil:true, memoriaId:null });
+    });
+    // Memórias por data (mais recentes primeiro)
+    mems.forEach(m=>{
+      const p=petById[m.pet_id];
+      albumFotos.push({ url:m.foto_url, petId:m.pet_id, petNome:(p?p.nome:'')||'', titulo:m.titulo||'Memória', data:m.data_memoria||null, descricao:m.descricao||'', isVideo:ehUrlVideo(m.foto_url), isPerfil:false, memoriaId:m.id });
+    });
+
+    albumFiltro='todos';
+    albumRenderChips();
+    albumRenderGrid();
+  }catch(e){
+    if(main) main.style.display='block';
+    if(grid) grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:22px;color:var(--rose);font-size:.85rem">Não foi possível carregar o álbum.<br><span style="color:var(--ink-soft)">'+((e&&e.message)?e.message:e)+'</span></div>';
+    console.error('renderAlbum:', e);
+  }
+}
+
+function albumBuildChips(){
+  const pets=(userPets||[]);
+  const comFoto={}; albumFotos.forEach(f=>{ comFoto[f.petId]=(comFoto[f.petId]||0)+1; });
+  return [{id:'todos',nome:'Todos',n:albumFotos.length}].concat(
+    pets.filter(p=>comFoto[p.id]).map(p=>({id:p.id,nome:p.nome||'Pet',n:comFoto[p.id]}))
+  );
+}
+function albumChipHtml(c){
+  const ativo=(albumFiltro===c.id);
+  return '<button onclick="albumSetFiltro(\''+c.id+'\')" style="border:none;cursor:pointer;padding:7px 13px;border-radius:100px;font-size:.8rem;background:'+(ativo?'var(--rose)':'var(--bg)')+';color:'+(ativo?'#fff':'var(--ink-mid)')+'">'+sucEsc(c.nome)+' <span style="opacity:.7">'+c.n+'</span></button>';
+}
+function albumRenderChips(){
+  const filtros=document.getElementById('album-filtros');
+  if(filtros) filtros.innerHTML=albumBuildChips().map(c=>albumChipHtml(c)).join('');
+}
+function albumSetFiltro(id){ albumFiltro=id; albumRenderChips(); albumRenderGrid(); }
+
+function albumFotosFiltradas(){
+  return albumFiltro==='todos' ? albumFotos : albumFotos.filter(f=>f.petId===albumFiltro);
+}
+
+function albumRenderGrid(){
+  const grid=document.getElementById('album-grid');
+  const vazio=document.getElementById('album-vazio');
+  if(!grid) return;
+  const lista=albumFotosFiltradas();
+  if(!lista.length){ grid.innerHTML=''; if(vazio) vazio.style.display='block'; return; }
+  if(vazio) vazio.style.display='none';
+  grid.innerHTML=lista.map((f,i)=>{
+    const media = f.isVideo
+      ? '<video src="'+f.url+'#t=0.1" preload="metadata" muted playsinline style="width:100%;height:100%;object-fit:cover"></video><div style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.55);color:#fff;border-radius:6px;font-size:.7rem;padding:1px 5px">🎬</div>'
+      : '<img src="'+f.url+'" loading="lazy" style="width:100%;height:100%;object-fit:cover"/>';
+    return '<div onclick="albumAbrir('+i+')" style="position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;cursor:pointer;background:var(--bg)">'+media+'</div>';
+  }).join('');
+}
+
+function albumAbrir(i){
+  const f=albumFotosFiltradas()[i]; if(!f) return;
+  const lb=document.getElementById('album-lightbox');
+  const media=document.getElementById('album-lb-media');
+  const info=document.getElementById('album-lb-info');
+  if(media){
+    media.innerHTML = f.isVideo
+      ? '<video src="'+f.url+'" controls autoplay playsinline style="max-width:100%;max-height:78vh;border-radius:10px"></video>'
+      : '<img src="'+f.url+'" style="max-width:100%;max-height:78vh;object-fit:contain;border-radius:10px"/>';
+  }
+  if(info){
+    const dt = f.data ? new Date(f.data+'T00:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'}) : '';
+    const linha2=[f.petNome, dt].filter(Boolean).join(' · ');
+    const verBtn = f.petId ? '<button class="btn btn-secondary btn-sm" style="margin-top:10px" onclick="albumVerNoMemorial(\''+f.petId+'\')">Ver no Memorial</button>' : '';
+    info.innerHTML =
+      '<div style="font-family:\'Lora\',serif;font-size:1.1rem;font-weight:700">'+sucEsc(f.titulo)+'</div>'
+      + (linha2?'<div style="font-size:.82rem;opacity:.8;margin-top:2px">'+sucEsc(linha2)+'</div>':'')
+      + (f.descricao?'<div style="font-size:.88rem;opacity:.92;margin-top:8px;line-height:1.6">'+sucEsc(f.descricao)+'</div>':'')
+      + verBtn;
+  }
+  if(lb) lb.style.display='flex';
+}
+
+function albumFechar(ev){
+  const lb=document.getElementById('album-lightbox');
+  if(!lb) return;
+  lb.style.display='none';
+  const media=document.getElementById('album-lb-media');
+  if(media) media.innerHTML=''; // interrompe vídeo
+}
+
+function albumVerNoMemorial(petId){
+  albumFechar();
+  currentPetId=petId;
+  const sel=document.getElementById('memorial-pet-select'); if(sel) sel.value=petId;
+  navigate('memorial');
 }
 </script>
 </body>
