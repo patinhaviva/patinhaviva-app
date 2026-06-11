@@ -1114,6 +1114,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
             <button class="btn btn-ghost btn-sm" style="margin-top:14px;width:100%" onclick="renderAdmin()">Atualizar</button>
           </div>
         </div>
+
+        <!-- CORTESIA DE CONTAS (presentear planos sem cobrança) -->
+        <div class="card" style="margin-top:28px">
+          <div class="card-title">🎁 Cortesia de contas</div>
+          <p style="font-size:.82rem;color:var(--ink-soft);margin:0 0 14px">Presenteie um plano sem cobrança. Busque a pessoa pelo e-mail de cadastro e conceda ou revogue.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
+            <input id="cort-email" type="email" placeholder="email@exemplo.com" autocomplete="off"
+              style="flex:1;min-width:220px;padding:10px 12px;border:1px solid rgba(45,38,64,.15);border-radius:10px;font-size:.9rem"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();cortBuscar();}">
+            <button class="btn btn-secondary btn-sm" onclick="cortBuscar()">Buscar</button>
+          </div>
+          <div id="cort-resultado" style="display:none;margin-top:10px"></div>
+          <div id="cort-msg" style="display:none;font-size:.82rem;margin-top:10px"></div>
+        </div>
       </div>
     </div>
 
@@ -3107,6 +3121,60 @@ async function renderAdmin(){
 
   loading.style.display = 'none';
   conteudo.style.display = 'block';
+}
+
+// ── CORTESIA DE CONTAS (Admin: presentear/revogar planos sem cobrança) ──
+let cortEmailAtual = null;
+function cortEsc(s){ return String(s==null?'':s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function cortMsg(t, ok){
+  const el = document.getElementById('cort-msg'); if(!el) return;
+  el.style.display = t ? 'block' : 'none';
+  el.style.color = ok ? 'var(--teal)' : 'var(--rose)';
+  el.textContent = t || '';
+}
+async function cortBuscar(){
+  const email = (document.getElementById('cort-email')?.value || '').trim();
+  const res = document.getElementById('cort-resultado');
+  cortMsg(''); cortEmailAtual = null;
+  if(res) res.style.display = 'none';
+  if(!email){ cortMsg('Informe um e-mail.'); return; }
+  const { data, error } = await supabase.rpc('admin_buscar_usuario', { p_email: email });
+  if(error){ cortMsg(error.message || 'Erro na busca.'); return; }
+  if(!data){ cortMsg('Nenhuma conta encontrada com esse e-mail.'); return; }
+  cortEmailAtual = data.email;
+  cortRenderResultado(data);
+}
+function cortRenderResultado(d){
+  const res = document.getElementById('cort-resultado'); if(!res) return;
+  const planoNome = (PLANOS[d.plano]?.nome) || capitalizar(d.plano || 'livre');
+  const tag = d.cortesia ? '<span style="background:var(--violet);color:#fff;border-radius:100px;padding:2px 9px;font-size:.7rem;margin-left:8px;vertical-align:middle">cortesia</span>' : '';
+  const titulo = d.nome ? cortEsc(d.nome) : cortEsc(d.email || '');
+  res.innerHTML =
+    '<div style="background:var(--bg);border-radius:12px;padding:14px 16px">'
+    + '<div style="font-weight:600;color:var(--ink)">' + titulo + tag + '</div>'
+    + '<div style="font-size:.8rem;color:var(--ink-soft);margin-top:2px">' + cortEsc(d.email || '') + '</div>'
+    + '<div style="font-size:.85rem;color:var(--ink-mid);margin-top:8px">Plano atual: <b>' + planoNome + '</b></div>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'
+    +   '<button class="btn btn-secondary btn-sm" onclick="cortSetPlano(\'premium\')">Premium</button>'
+    +   '<button class="btn btn-secondary btn-sm" onclick="cortSetPlano(\'duo\')">Duo</button>'
+    +   '<button class="btn btn-secondary btn-sm" onclick="cortSetPlano(\'familia\')">Família</button>'
+    +   '<button class="btn btn-ghost btn-sm" style="color:var(--rose)" onclick="cortSetPlano(\'livre\')">Revogar (Livre)</button>'
+    + '</div></div>';
+  res.style.display = 'block';
+}
+async function cortSetPlano(plano){
+  if(!cortEmailAtual){ cortMsg('Busque uma conta primeiro.'); return; }
+  const nomePlano = (PLANOS[plano]?.nome) || capitalizar(plano);
+  const acao = plano === 'livre' ? 'revogar a cortesia (voltar para Livre)' : ('conceder o plano ' + nomePlano + ' (cortesia)');
+  if(!confirm('Confirmar: ' + acao + ' para ' + cortEmailAtual + '?')) return;
+  cortMsg('Aplicando…');
+  const { data, error } = await supabase.rpc('admin_set_plano', { p_email: cortEmailAtual, p_plano: plano });
+  if(error){ cortMsg(error.message || 'Erro ao aplicar.'); return; }
+  cortRenderResultado({ email: cortEmailAtual, nome: null, plano: (data?.plano || plano), cortesia: !!(data?.cortesia) });
+  cortMsg(plano === 'livre'
+    ? ('✅ Cortesia removida — ' + cortEmailAtual + ' voltou para Livre.')
+    : ('✅ ' + cortEmailAtual + ' agora é ' + nomePlano + ' (cortesia).'), true);
+  renderAdmin(); // atualiza a distribuição por plano
 }
 
 // ── SIDEBAR MOBILE ────────────────────────────────────────

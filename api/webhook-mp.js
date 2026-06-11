@@ -50,7 +50,9 @@ module.exports = async (req, res) => {
         });
       }
       if (novoPlano && tutorId && ['livre','premium','duo','familia'].indexOf(novoPlano) !== -1) {
-        await svc(`profiles?id=eq.${tutorId}`, { plano: novoPlano, atualizado_em: new Date().toISOString() });
+        // BLINDAGEM DA CORTESIA: nunca sobrescrever o plano de uma conta de cortesia
+        // (cortesia=true). O filtro cortesia=eq.false faz o PATCH só atingir contas pagas.
+        await svc(`profiles?id=eq.${tutorId}&cortesia=eq.false`, { plano: novoPlano, atualizado_em: new Date().toISOString() });
       }
       res.status(200).json({ ok: true, kind: 'preapproval' });
       return;
