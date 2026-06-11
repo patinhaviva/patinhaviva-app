@@ -3237,7 +3237,7 @@ function compartilharPost(postId){
 // ══════════════════════════════════════════════════════════
 //  SININHO 🔔 — 🅰️ novos posts no feed + 🅱️ interações nos meus posts
 // ══════════════════════════════════════════════════════════
-let notifState = { lista: [], naoLidas: 0, novosPosts: 0 };
+let notifState = { lista: [], naoLidas: 0, novosPosts: 0, novosAutores: [] };
 
 function comVisitaKey(){ return 'pv_com_visita_' + (currentUser?.id || 'anon'); }
 function comUltimaVisita(){ try { return localStorage.getItem(comVisitaKey()); } catch(e){ return null; } }
@@ -3261,13 +3261,15 @@ async function carregarNotificacoes(){
   try {
     const desde = comUltimaVisita();
     if(desde){
-      const { count } = await supabase.from('posts').select('id', { count:'exact', head:true })
-        .gt('criado_em', desde).neq('tutor_id', currentUser.id);
-      notifState.novosPosts = count || 0;
+      const { data: novos } = await supabase.from('posts')
+        .select('autor_nome,criado_em').gt('criado_em', desde).neq('tutor_id', currentUser.id)
+        .order('criado_em', { ascending:false }).limit(30);
+      notifState.novosAutores = novos || [];
+      notifState.novosPosts = notifState.novosAutores.length;
     } else {
       marcarVisitaComunidade();   // 1ª vez: não conta o histórico como "novo"
     }
-  } catch(e){ notifState.novosPosts = 0; }
+  } catch(e){ notifState.novosPosts = 0; notifState.novosAutores = []; }
   atualizarBadgeSino();
 }
 
@@ -3293,14 +3295,18 @@ async function abrirSino(){
   const lista = notifState.lista || [];
   let itens = '';
   if(novos > 0){
+    const aut = escapeHtml((notifState.novosAutores[0] && notifState.novosAutores[0].autor_nome) || 'Alguém');
+    const txt = novos === 1
+      ? `<b style="color:var(--ink)">${aut}</b> publicou na comunidade`
+      : `<b style="color:var(--ink)">${aut}</b> e mais ${novos-1} publicaram na comunidade`;
     itens += `<button onclick="sinoIrComunidade()" style="display:flex;width:100%;text-align:left;gap:10px;align-items:center;background:rgba(124,47,214,.08);border:none;border-radius:12px;padding:12px;cursor:pointer;margin-bottom:8px">
       <span style="font-size:1.3rem">🆕</span>
-      <span style="font-size:.88rem;color:var(--ink);font-weight:600">${novos} ${novos===1?'novo post':'novos posts'} na comunidade</span>
+      <span style="font-size:.88rem;color:var(--ink-mid);line-height:1.4">${txt}</span>
     </button>`;
   }
   if(lista.length){
     itens += lista.map(n => {
-      const nome = escapeHtml((n.ator_nome || 'Alguém').split(' ')[0]);
+      const nome = escapeHtml(n.ator_nome || 'Alguém');
       const ini = (nome[0]||'·').toUpperCase();
       return `<button onclick="notifClicar('${n.post_id}','${n.tipo}')" style="display:flex;width:100%;text-align:left;gap:10px;align-items:flex-start;background:${n.lida?'transparent':'rgba(25,182,196,.08)'};border:none;border-bottom:1px solid rgba(0,0,0,.05);padding:10px 8px;cursor:pointer">
         <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#7C2FD6,#19B6C4);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.78rem;flex-shrink:0">${ini}</div>
