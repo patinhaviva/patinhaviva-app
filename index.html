@@ -17,6 +17,7 @@
 <!-- build: comunidade-2.0 fase 1 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 const SUPABASE_URL = 'https://lpddtwgqjtbpjvpslwtu.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_HGiHsjQ3RIGxgnc5T-w0Aw_fhg4nLmG';
@@ -1184,6 +1185,39 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
           <div id="cort-msg" style="display:none;font-size:.82rem;margin-top:10px"></div>
           <div id="cort-share" style="display:none;margin-top:10px"></div>
         </div>
+
+        <!-- PARCEIROS / AFILIADOS -->
+        <div class="card" id="adm-parc-card" style="margin-top:28px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+            <div class="card-title" style="margin:0">🤝 Parceiros</div>
+            <button class="btn btn-primary btn-sm" onclick="parcNovo()">+ Novo parceiro</button>
+          </div>
+          <p style="font-size:.82rem;color:var(--ink-soft);margin:8px 0 14px">Clínicas, pet shops, ONGs e outros indicadores. Cada parceiro tem link e QR Code exclusivos; a comissão recorrente é calculada automaticamente quando o cliente indicado paga (Bronze 10% · Prata 15% · Ouro 20%).</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+            <input id="parc-busca" type="text" placeholder="Buscar por nome, código ou cidade…" oninput="parcAplicarFiltro()"
+              style="flex:1;min-width:220px;padding:10px 12px;border:1px solid rgba(45,38,64,.15);border-radius:10px;font-size:.9rem">
+            <button class="btn btn-ghost btn-sm" onclick="parcCarregar()">Atualizar</button>
+          </div>
+          <div id="parc-ftipo"   style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px"></div>
+          <div id="parc-fstatus" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px"></div>
+          <div id="parc-fnivel"  style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
+          <div id="parc-contador" style="font-size:.78rem;color:var(--ink-soft);margin-bottom:8px"></div>
+          <div id="parc-loading" style="font-size:.85rem;color:var(--ink-soft)">Carregando parceiros…</div>
+          <div id="parc-erro" style="display:none;font-size:.82rem;color:var(--rose)"></div>
+          <div id="parc-tabela" style="overflow-x:auto"></div>
+        </div>
+
+        <!-- COMISSÕES -->
+        <div class="card" id="adm-com-card" style="margin-top:28px">
+          <div class="card-title">🧮 Comissões</div>
+          <p style="font-size:.82rem;color:var(--ink-soft);margin:0 0 12px">Cada comissão mensal nasce <b>Pendente</b> quando o cliente indicado paga. No fechamento, marque <b>Aprovada</b> e depois <b>Paga</b>. Cancelamento/inadimplência marca <b>Cancelada</b> automaticamente.</p>
+          <div id="parc-com-fstatus" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"></div>
+          <div id="parc-com-info" style="font-size:.78rem;color:var(--ink-soft);margin-bottom:8px"></div>
+          <div style="margin-bottom:10px"><button class="btn btn-ghost btn-sm" onclick="comissoesCarregar()">Atualizar</button></div>
+          <div id="parc-com-loading" style="font-size:.85rem;color:var(--ink-soft)">Carregando comissões…</div>
+          <div id="parc-com-erro" style="display:none;font-size:.82rem;color:var(--rose)"></div>
+          <div id="parc-com-tabela" style="overflow-x:auto"></div>
+        </div>
       </div>
     </div>
 
@@ -1193,6 +1227,128 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
 <!-- ══════════════════════════════════════════════════════
      MODAIS
 ══════════════════════════════════════════════════════ -->
+
+<!-- Modal: Cadastrar/Editar parceiro -->
+<div class="modal-overlay" id="modal-parceiro">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-parc-title">🤝 Novo parceiro</div>
+      <button class="modal-close" onclick="closeModal('modal-parceiro')">✕</button>
+    </div>
+    <div class="modal-form">
+      <input type="hidden" id="parc-f-id">
+      <div id="parc-f-codewrap" style="display:none;font-size:.8rem;color:var(--ink-soft);margin-bottom:8px">Código: <b id="parc-f-code"></b></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Nome fantasia *</label>
+          <input class="form-input" id="parc-f-nome" placeholder="Ex: Clínica Amigo Fiel"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tipo de parceiro</label>
+          <select class="select-input" id="parc-f-tipo">
+            <option value="clinica">Clínica veterinária</option>
+            <option value="petshop">Pet shop</option>
+            <option value="banhotosa">Banho e tosa</option>
+            <option value="hospital">Hospital veterinário</option>
+            <option value="ong">ONG/protetor</option>
+            <option value="adestrador">Adestrador</option>
+            <option value="hotelcreche">Hotel/creche pet</option>
+            <option value="outro">Outro</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Razão social</label>
+          <input class="form-input" id="parc-f-razao" placeholder="Razão social (opcional)"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">CNPJ ou CPF</label>
+          <input class="form-input" id="parc-f-doc" placeholder="00.000.000/0000-00"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Responsável</label>
+          <input class="form-input" id="parc-f-resp" placeholder="Nome do responsável"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select class="select-input" id="parc-f-status">
+            <option value="ativo">Ativo</option>
+            <option value="inativo">Inativo</option>
+            <option value="suspenso">Suspenso</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">E-mail</label>
+          <input class="form-input" id="parc-f-email" type="email" placeholder="contato@parceiro.com"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Telefone/WhatsApp</label>
+          <input class="form-input" id="parc-f-tel" placeholder="(31) 99999-9999"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Endereço</label>
+        <input class="form-input" id="parc-f-end" placeholder="Rua, número, bairro"/>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Cidade</label>
+          <input class="form-input" id="parc-f-cidade" placeholder="Belo Horizonte"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Estado (UF)</label>
+          <input class="form-input" id="parc-f-uf" placeholder="MG" maxlength="2"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Chave Pix (pagamento)</label>
+          <input class="form-input" id="parc-f-pix" placeholder="CPF/CNPJ, e-mail, telefone ou aleatória"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Cupom (opcional)</label>
+          <input class="form-input" id="parc-f-cupom" placeholder="Ex: PV001"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Dados bancários (opcional)</label>
+        <input class="form-input" id="parc-f-banco" placeholder="Banco / agência / conta"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Observações internas</label>
+        <textarea class="form-input" id="parc-f-obs" rows="2" placeholder="Anotações (não visíveis ao parceiro)"></textarea>
+      </div>
+      <div id="parc-form-erro" style="display:none;font-size:.82rem;color:var(--rose);margin-bottom:10px"></div>
+      <button class="btn btn-primary" style="width:100%" onclick="parcSalvar()">Salvar parceiro</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Link & QR Code do parceiro -->
+<div class="modal-overlay" id="modal-parceiro-qr">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🔗 Link &amp; QR Code</div>
+      <button class="modal-close" onclick="closeModal('modal-parceiro-qr')">✕</button>
+    </div>
+    <div class="modal-form" style="text-align:center">
+      <div id="parc-qr-nome" style="font-weight:600;margin-bottom:4px"></div>
+      <div style="font-size:.8rem;color:var(--ink-soft);margin-bottom:14px">Compartilhe na recepção, balcão, redes sociais ou materiais impressos.</div>
+      <div id="parc-qr-target" style="display:flex;justify-content:center;min-height:220px;margin-bottom:14px"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+        <input id="parc-qr-link" type="text" readonly onclick="this.select()"
+          style="flex:1;min-width:200px;padding:10px 12px;border:1px solid rgba(45,38,64,.15);border-radius:10px;font-size:.85rem;font-family:'DM Mono',monospace">
+        <button class="btn btn-secondary btn-sm" onclick="parcCopiarLink()">Copiar</button>
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="parcBaixarQR()">⬇ Baixar QR Code (PNG)</button>
+    </div>
+  </div>
+</div>
 
 <!-- Modal: Novo Pet -->
 <div class="modal-overlay" id="modal-pet">
@@ -2025,6 +2181,10 @@ async function initApp(user) {
     if(pend){ sessionStorage.removeItem('pv_convite'); await aceitarConviteFamilia(pend); }
   } catch(e){}
 
+  // Parceiros/afiliados: vincula a conta ao parceiro indicador (?ref= guardado no
+  // boot, vale 30 dias). Idempotente e TRAVADO (1 parceiro por cliente) no banco.
+  try { await aplicarRefParceiro(); } catch(e){}
+
   // Sininho 🔔: carrega notificações no boot e atualiza a cada 60s
   carregarNotificacoes();
   if(!window._sinoPoll){
@@ -2192,6 +2352,20 @@ async function aceitarConviteFamilia(codigo, erroEl){
   const nome = (data && data.dono_nome) || 'a família';
   alert('Pronto! 🐾 Você agora é co-tutor de ' + nome + '. Os pets da família já aparecem para você.');
   navigate('familia');
+}
+
+// Parceiros/afiliados: aplica o ?ref guardado (vincula a conta ao parceiro).
+// Só vale por 30 dias. Idempotente e travado no banco (1 parceiro por cliente):
+// chamar de novo não troca o parceiro. Limpa o ref após aplicar.
+async function aplicarRefParceiro(){
+  let raw; try { raw = JSON.parse(localStorage.getItem('pv_ref') || 'null'); } catch(e){ raw = null; }
+  if(!raw || !raw.code) return;
+  const TRINTA_DIAS = 30*24*60*60*1000;
+  if(!raw.ts || (Date.now() - raw.ts) > TRINTA_DIAS){ localStorage.removeItem('pv_ref'); return; }
+  try {
+    await supabase.rpc('pv_vincular_parceiro', { p_ref: raw.code });
+  } catch(e){ /* silencioso — o cliente nunca precisa saber de parceria */ }
+  localStorage.removeItem('pv_ref');
 }
 
 async function sairOuRemoverFamilia(vinculoId, ehSaida){
@@ -3432,6 +3606,16 @@ window.addEventListener('load', async () => {
   // Se voltamos pelo link de redefinição, mostra a tela de nova senha (não entra no app)
   if(window.__isRecovery){ mostrarResetSenha(); return; }
 
+  // Parceiros/afiliados: captura o ?ref=PVxxx (indicação) ANTES de qualquer
+  // replaceState. Guarda no localStorage por 30 dias; é aplicado no initApp quando
+  // a conta logar/for criada (vale pra quem assina na hora ou volta dias depois).
+  try {
+    const refParam = (new URLSearchParams(window.location.search).get('ref')||'').trim();
+    if(/^PV\d+$/i.test(refParam)){
+      localStorage.setItem('pv_ref', JSON.stringify({ code: refParam.toUpperCase(), ts: Date.now() }));
+    }
+  } catch(e){}
+
   // Multi-tutor: link de convite (?convite=CODIGO) — guarda o código e processa
   // após o login (vale tanto p/ quem já tem sessão quanto p/ quem vai criar conta).
   let conviteParam = '';
@@ -3577,6 +3761,8 @@ async function renderAdmin(){
   admFinanceiro();
   usersCarregar();
   pagCarregar();
+  parcCarregar();
+  comissoesCarregar();
 }
 
 // ── ADMIN · FINANCEIRO + LISTA DE USUÁRIOS ──────────────────────────────
@@ -3835,6 +4021,277 @@ async function cortSetPlano(plano){
     }
   }
   renderAdmin(); // atualiza a distribuição por plano
+}
+
+// ── ADMIN · PARCEIROS / AFILIADOS ─────────────────────────
+const PARC_TIPOS = {
+  clinica:'Clínica veterinária', petshop:'Pet shop', banhotosa:'Banho e tosa',
+  hospital:'Hospital veterinário', ong:'ONG/protetor', adestrador:'Adestrador',
+  hotelcreche:'Hotel/creche pet', outro:'Outro'
+};
+const PARC_NIVEL = {
+  bronze:{ txt:'🥉 Bronze', pct:10 }, prata:{ txt:'🥈 Prata', pct:15 }, ouro:{ txt:'🥇 Ouro', pct:20 }
+};
+const COM_STATUS = {
+  pendente:  { txt:'Pendente',  cor:'#7a5a00',         bg:'#ffe7a8' },
+  aprovada:  { txt:'Aprovada',  cor:'#fff',            bg:'var(--violet)' },
+  paga:      { txt:'Paga',      cor:'#fff',            bg:'var(--teal)' },
+  cancelada: { txt:'Cancelada', cor:'var(--ink-soft)', bg:'rgba(45,38,64,.08)' }
+};
+function comBadge(s){
+  const m = COM_STATUS[s] || { txt: capitalizar(s||'—'), cor:'var(--ink-soft)', bg:'rgba(45,38,64,.08)' };
+  return '<span style="background:'+m.bg+';color:'+m.cor+';border-radius:100px;padding:2px 9px;font-size:.72rem;white-space:nowrap">'+m.txt+'</span>';
+}
+// A landing é a porta de entrada (mostra o marketing + vídeo) e repassa o ?ref ao app.
+const PARC_LANDING_BASE = 'https://patinhaviva.com.br';
+function parcLink(code){ return PARC_LANDING_BASE + '/?ref=' + encodeURIComponent(code); }
+function esc(s){ return escapeHtml(s); }
+
+let parcDados = [];
+let parcFiltro = { tipo:'todos', status:'todos', nivel:'todos' };
+
+async function parcCarregar(){
+  const loading=document.getElementById('parc-loading');
+  const erro=document.getElementById('parc-erro');
+  if(loading) loading.style.display='block';
+  if(erro) erro.style.display='none';
+  const { data, error } = await supabase.rpc('admin_parceiros_listar');
+  if(loading) loading.style.display='none';
+  if(error){
+    if(erro){ erro.style.display='block'; erro.textContent=(error.message||'Erro')+'. Verifique se patinhaviva_parceiros.sql foi rodado no banco.'; }
+    return;
+  }
+  parcDados = data || [];
+  parcRenderFiltros();
+  parcAplicarFiltro();
+}
+
+function parcChipHtml(label, ativo, fn){
+  const base='border:none;cursor:pointer;border-radius:100px;padding:5px 12px;font-size:.78rem;white-space:nowrap;';
+  const on='background:var(--violet);color:#fff;';
+  const off='background:rgba(45,38,64,.07);color:var(--ink-mid);';
+  return '<button style="'+base+(ativo?on:off)+'" onclick="'+fn+'">'+label+'</button>';
+}
+function parcRenderFiltros(){
+  // Tipos presentes nos dados (+ Todos)
+  const tiposPresentes = Array.from(new Set(parcDados.map(p=>p.tipo))).filter(Boolean);
+  const ft=document.getElementById('parc-ftipo');
+  if(ft){
+    let h = parcChipHtml('Todos os tipos', parcFiltro.tipo==='todos', "parcSetFiltro('tipo','todos')");
+    tiposPresentes.forEach(t=>{ h += parcChipHtml(PARC_TIPOS[t]||capitalizar(t), parcFiltro.tipo===t, "parcSetFiltro('tipo','"+t+"')"); });
+    ft.innerHTML=h;
+  }
+  const fs=document.getElementById('parc-fstatus');
+  if(fs){
+    let h = parcChipHtml('Todos os status', parcFiltro.status==='todos', "parcSetFiltro('status','todos')");
+    ['ativo','inativo','suspenso'].forEach(s=>{ h += parcChipHtml(capitalizar(s), parcFiltro.status===s, "parcSetFiltro('status','"+s+"')"); });
+    fs.innerHTML=h;
+  }
+  const fn=document.getElementById('parc-fnivel');
+  if(fn){
+    let h = parcChipHtml('Todos os níveis', parcFiltro.nivel==='todos', "parcSetFiltro('nivel','todos')");
+    ['bronze','prata','ouro'].forEach(n=>{ h += parcChipHtml(PARC_NIVEL[n].txt, parcFiltro.nivel===n, "parcSetFiltro('nivel','"+n+"')"); });
+    fn.innerHTML=h;
+  }
+}
+function parcSetFiltro(campo, valor){ parcFiltro[campo]=valor; parcRenderFiltros(); parcAplicarFiltro(); }
+
+function parcAplicarFiltro(){
+  const q = (document.getElementById('parc-busca')?.value||'').trim().toLowerCase();
+  const lista = parcDados.filter(p=>{
+    if(parcFiltro.tipo!=='todos'   && p.tipo!==parcFiltro.tipo) return false;
+    if(parcFiltro.status!=='todos' && p.status!==parcFiltro.status) return false;
+    if(parcFiltro.nivel!=='todos'  && p.current_level!==parcFiltro.nivel) return false;
+    if(q){
+      const alvo = ((p.nome_fantasia||'')+' '+(p.code||'')+' '+(p.cidade||'')+' '+(p.estado||'')).toLowerCase();
+      if(alvo.indexOf(q)===-1) return false;
+    }
+    return true;
+  });
+  const cont=document.getElementById('parc-contador');
+  if(cont) cont.textContent = lista.length+' de '+parcDados.length+' parceiro(s)';
+  parcRenderTabela(lista);
+}
+
+function parcRenderTabela(lista){
+  const wrap=document.getElementById('parc-tabela');
+  if(!wrap) return;
+  if(!lista.length){ wrap.innerHTML='<div style="font-size:.85rem;color:var(--ink-soft);padding:8px 0">Nenhum parceiro. Clique em “+ Novo parceiro”.</div>'; return; }
+  const th='text-align:left;padding:8px 10px;font-size:.72rem;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap;border-bottom:1px solid rgba(45,38,64,.08)';
+  const td='padding:8px 10px;font-size:.84rem;border-bottom:1px solid rgba(45,38,64,.05);vertical-align:middle';
+  let h='<table style="width:100%;border-collapse:collapse;min-width:920px"><thead><tr>'
+    + '<th style="'+th+'">Código</th><th style="'+th+'">Parceiro</th><th style="'+th+'">Cidade/UF</th>'
+    + '<th style="'+th+'">Status</th><th style="'+th+'">Nível</th><th style="'+th+'">Cliques</th>'
+    + '<th style="'+th+'">Cadastros</th><th style="'+th+'">Ativos</th><th style="'+th+'">Receita/mês</th>'
+    + '<th style="'+th+'">Comissão</th><th style="'+th+'">Ações</th></tr></thead><tbody>';
+  lista.forEach(p=>{
+    const niv = PARC_NIVEL[p.current_level] || PARC_NIVEL.bronze;
+    const cidade = [p.cidade, p.estado].filter(Boolean).join('/') || '—';
+    h += '<tr>'
+      + '<td style="'+td+';font-family:\'DM Mono\',monospace;white-space:nowrap">'+esc(p.code)+'</td>'
+      + '<td style="'+td+'"><div style="font-weight:600">'+esc(p.nome_fantasia)+'</div><div style="font-size:.74rem;color:var(--ink-soft)">'+(PARC_TIPOS[p.tipo]||esc(p.tipo||''))+'</div></td>'
+      + '<td style="'+td+';white-space:nowrap">'+esc(cidade)+'</td>'
+      + '<td style="'+td+'">'+admStatusBadge(p.status==='ativo'?'ativa':p.status)+'</td>'
+      + '<td style="'+td+';white-space:nowrap">'+niv.txt+' · '+niv.pct+'%</td>'
+      + '<td style="'+td+'">'+(p.cliques||0)+'</td>'
+      + '<td style="'+td+'">'+(p.cadastros||0)+'</td>'
+      + '<td style="'+td+';font-weight:600">'+(p.ativos||0)+'</td>'
+      + '<td style="'+td+';white-space:nowrap">'+admBRL(p.receita_mensal_centavos)+'</td>'
+      + '<td style="'+td+';white-space:nowrap"><span title="Pendente">'+admBRL(p.comissao_pendente_centavos)+'</span> <span style="color:var(--ink-soft)">/ pago '+admBRL(p.comissao_paga_centavos)+'</span></td>'
+      + '<td style="'+td+';white-space:nowrap">'
+        + '<button class="btn btn-ghost btn-sm" onclick="parcEditar(\''+p.id+'\')">Editar</button> '
+        + '<button class="btn btn-secondary btn-sm" onclick="parcAbrirQR(\''+esc(p.code)+'\',\''+esc((p.nome_fantasia||'').replace(/[\x27"]/g,"")) +'\')">Link/QR</button> '
+        + '<button class="btn btn-ghost btn-sm" onclick="comissoesCarregar(\''+p.id+'\')">Comissões</button>'
+      + '</td></tr>';
+  });
+  h+='</tbody></table>';
+  wrap.innerHTML=h;
+}
+
+// ── Cadastro / edição ──
+function parcLimparForm(){
+  ['id','nome','razao','doc','resp','email','tel','end','cidade','uf','pix','cupom','banco','obs'].forEach(k=>{
+    const el=document.getElementById('parc-f-'+k); if(el) el.value='';
+  });
+  document.getElementById('parc-f-tipo').value='clinica';
+  document.getElementById('parc-f-status').value='ativo';
+  const cw=document.getElementById('parc-f-codewrap'); if(cw) cw.style.display='none';
+  const er=document.getElementById('parc-form-erro'); if(er) er.style.display='none';
+}
+function parcNovo(){
+  parcLimparForm();
+  document.getElementById('modal-parc-title').textContent='🤝 Novo parceiro';
+  openModal('modal-parceiro');
+}
+function parcEditar(id){
+  const p = parcDados.find(x=>x.id===id);
+  if(!p) return;
+  parcLimparForm();
+  document.getElementById('modal-parc-title').textContent='✏️ Editar parceiro';
+  const set=(k,v)=>{ const el=document.getElementById('parc-f-'+k); if(el) el.value=(v==null?'':v); };
+  set('id',p.id); set('nome',p.nome_fantasia); set('razao',p.razao_social); set('doc',p.documento);
+  set('resp',p.responsavel); set('email',p.email); set('tel',p.telefone); set('end',p.endereco);
+  set('cidade',p.cidade); set('uf',p.estado); set('pix',p.pix_key); set('cupom',p.cupom);
+  set('banco',p.dados_bancarios); set('obs',p.observacoes);
+  document.getElementById('parc-f-tipo').value = p.tipo||'outro';
+  document.getElementById('parc-f-status').value = p.status||'ativo';
+  const cw=document.getElementById('parc-f-codewrap'); const cc=document.getElementById('parc-f-code');
+  if(cw&&cc){ cc.textContent=p.code; cw.style.display='block'; }
+  openModal('modal-parceiro');
+}
+async function parcSalvar(){
+  const g=k=>{ const el=document.getElementById('parc-f-'+k); return el?el.value.trim():''; };
+  const erro=document.getElementById('parc-form-erro');
+  const nome=g('nome');
+  if(!nome){ if(erro){erro.style.display='block';erro.textContent='Informe o nome fantasia.';} return; }
+  const payload={
+    id: g('id')||null, nome_fantasia: nome, razao_social: g('razao'), documento: g('doc'),
+    tipo: document.getElementById('parc-f-tipo').value, responsavel: g('resp'), email: g('email'),
+    telefone: g('tel'), endereco: g('end'), cidade: g('cidade'), estado: g('uf').toUpperCase(),
+    pix_key: g('pix'), dados_bancarios: g('banco'), status: document.getElementById('parc-f-status').value,
+    cupom: g('cupom'), observacoes: g('obs')
+  };
+  if(erro) erro.style.display='none';
+  const { error } = await supabase.rpc('admin_parceiro_salvar', { p: payload });
+  if(error){ if(erro){erro.style.display='block';erro.textContent='Erro ao salvar: '+error.message;} return; }
+  closeModal('modal-parceiro');
+  parcCarregar();
+}
+
+// ── Link & QR Code ──
+let parcQRCodeAtual = '';
+function parcAbrirQR(code, nome){
+  parcQRCodeAtual = code;
+  document.getElementById('parc-qr-nome').textContent = (nome||'') + ' · ' + code;
+  document.getElementById('parc-qr-link').value = parcLink(code);
+  const el=document.getElementById('parc-qr-target'); el.innerHTML='';
+  if(typeof QRCode==='undefined'){ el.textContent='Não foi possível carregar o gerador de QR Code.'; }
+  else { new QRCode(el, { text: parcLink(code), width:220, height:220, correctLevel: QRCode.CorrectLevel.M }); }
+  openModal('modal-parceiro-qr');
+}
+function parcCopiarLink(){
+  const inp=document.getElementById('parc-qr-link');
+  inp.select();
+  navigator.clipboard?.writeText(inp.value).catch(()=>{ try{document.execCommand('copy');}catch(e){} });
+}
+function parcBaixarQR(){
+  const el=document.getElementById('parc-qr-target');
+  const canvas=el?el.querySelector('canvas'):null;
+  if(!canvas){ alert('QR Code ainda não gerado.'); return; }
+  const a=document.createElement('a');
+  a.href=canvas.toDataURL('image/png');
+  a.download='qrcode-'+(parcQRCodeAtual||'parceiro')+'.png';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+// ── Comissões ──
+let comFiltroStatus='todos';
+let comFiltroPartner=null;
+function comSetStatus(s){ comFiltroStatus=s; comissoesCarregar(); }
+async function comissoesCarregar(partnerId){
+  if(partnerId!==undefined) comFiltroPartner = partnerId || null;
+  const loading=document.getElementById('parc-com-loading');
+  const erro=document.getElementById('parc-com-erro');
+  if(loading) loading.style.display='block';
+  if(erro) erro.style.display='none';
+  // chips de status
+  const fs=document.getElementById('parc-com-fstatus');
+  if(fs){
+    let h=parcChipHtml('Todas', comFiltroStatus==='todos', "comSetStatus('todos')");
+    ['pendente','aprovada','paga','cancelada'].forEach(s=>{ h+=parcChipHtml(COM_STATUS[s].txt, comFiltroStatus===s, "comSetStatus('"+s+"')"); });
+    fs.innerHTML=h;
+  }
+  const args={};
+  if(comFiltroStatus!=='todos') args.p_status=comFiltroStatus;
+  if(comFiltroPartner) args.p_partner=comFiltroPartner;
+  const { data, error } = await supabase.rpc('admin_comissoes_listar', args);
+  if(loading) loading.style.display='none';
+  if(error){ if(erro){erro.style.display='block';erro.textContent=(error.message||'Erro')+'.'; } return; }
+  const info=document.getElementById('parc-com-info');
+  if(info){
+    if(comFiltroPartner){
+      const p=parcDados.find(x=>x.id===comFiltroPartner);
+      info.innerHTML='Filtrando por <b>'+esc(p?p.nome_fantasia:'parceiro')+'</b> · <a href="#" onclick="comissoesCarregar(\'\');return false" style="color:var(--violet)">limpar</a>';
+    } else info.textContent='';
+  }
+  comRenderTabela(data||[]);
+}
+function comRenderTabela(lista){
+  const wrap=document.getElementById('parc-com-tabela');
+  if(!wrap) return;
+  if(!lista.length){ wrap.innerHTML='<div style="font-size:.85rem;color:var(--ink-soft);padding:8px 0">Nenhuma comissão ainda. Elas aparecem quando um cliente indicado paga.</div>'; return; }
+  const th='text-align:left;padding:8px 10px;font-size:.72rem;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap;border-bottom:1px solid rgba(45,38,64,.08)';
+  const td='padding:8px 10px;font-size:.84rem;border-bottom:1px solid rgba(45,38,64,.05);vertical-align:middle';
+  let h='<table style="width:100%;border-collapse:collapse;min-width:880px"><thead><tr>'
+    + '<th style="'+th+'">Mês</th><th style="'+th+'">Parceiro</th><th style="'+th+'">Cliente</th>'
+    + '<th style="'+th+'">Plano</th><th style="'+th+'">%</th><th style="'+th+'">Comissão</th>'
+    + '<th style="'+th+'">Status</th><th style="'+th+'">Ações</th></tr></thead><tbody>';
+  lista.forEach(c=>{
+    const mes = (c.reference_month||'').slice(0,7).split('-').reverse().join('/');
+    let acoes='';
+    if(c.status==='pendente') acoes+='<button class="btn btn-ghost btn-sm" onclick="comMarcar(\''+c.id+'\',\'aprovada\')">Aprovar</button> ';
+    if(c.status==='aprovada') acoes+='<button class="btn btn-secondary btn-sm" onclick="comMarcar(\''+c.id+'\',\'paga\')">Marcar paga</button> ';
+    if(c.status!=='cancelada' && c.status!=='paga') acoes+='<button class="btn btn-ghost btn-sm" onclick="comMarcar(\''+c.id+'\',\'cancelada\')">Cancelar</button>';
+    h += '<tr>'
+      + '<td style="'+td+';white-space:nowrap">'+esc(mes)+'</td>'
+      + '<td style="'+td+'"><div style="font-weight:600">'+esc(c.partner_nome||'')+'</div><div style="font-size:.72rem;color:var(--ink-soft);font-family:\'DM Mono\',monospace">'+esc(c.partner_code||'')+'</div></td>'
+      + '<td style="'+td+'">'+esc(c.cliente_nome||'')+'</td>'
+      + '<td style="'+td+';white-space:nowrap">'+admPlanoLabel(c.plan_name)+'</td>'
+      + '<td style="'+td+'">'+(c.commission_percentage||0)+'%</td>'
+      + '<td style="'+td+';font-weight:600;white-space:nowrap">'+admBRL(c.commission_value_centavos)+'</td>'
+      + '<td style="'+td+'">'+comBadge(c.status)+'</td>'
+      + '<td style="'+td+';white-space:nowrap">'+(acoes||'—')+'</td></tr>';
+  });
+  h+='</tbody></table>';
+  wrap.innerHTML=h;
+}
+async function comMarcar(id, status){
+  const rotulo = { aprovada:'aprovar', paga:'marcar como paga', cancelada:'cancelar' }[status]||status;
+  if(!confirm('Confirmar: '+rotulo+' esta comissão?')) return;
+  const { error } = await supabase.rpc('admin_comissao_marcar', { p_ids:[id], p_status:status });
+  if(error){ alert('Erro: '+error.message); return; }
+  comissoesCarregar();
+  parcCarregar(); // atualiza os totais de comissão na lista de parceiros
 }
 
 // ── SIDEBAR MOBILE ────────────────────────────────────────

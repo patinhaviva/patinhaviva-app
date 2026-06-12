@@ -46,6 +46,11 @@ module.exports = async (req, res) => {
       headers: { ...sbHeaders, Prefer: 'resolution=ignore-duplicates,return=minimal' },
       body: JSON.stringify(row)
     });
+    // Chama uma função SQL (RPC) com a service_role. Usado pelo sistema de PARCEIROS
+    // (gera/cancela comissão). Best-effort: nunca derruba o processamento do pagamento.
+    const svcRpc = (fn, payload) => fetch(`${SB_URL}/rest/v1/rpc/${fn}`, {
+      method: 'POST', headers: sbHeaders, body: JSON.stringify(payload)
+    }).catch(() => null);
 
     // Registra a cobrança e ajusta o status da assinatura.
     async function registrarCobranca({ assinaturaId, tutorId, plano, valorCentavos, mpStatus, mpPayId, pagoEm }) {
@@ -67,6 +72,15 @@ module.exports = async (req, res) => {
         await svc(`assinaturas?id=eq.${assinaturaId}`, {
           status: aprovado ? 'ativa' : 'inadimplente',
           atualizado_em: new Date().toISOString()
+        });
+      }
+      // PARCEIROS/AFILIADOS: cobrança APROVADA gera a comissão do mês (idempotente
+      // por assinatura+mês na função SQL). Se o cliente não tem parceiro, é no-op.
+      // A assinatura já foi marcada 'ativa' acima → entra na contagem do nível.
+      if (aprovado && assinaturaId && tutorId) {
+        await svcRpc('pv_registrar_comissao', {
+          p_customer: tutorId, p_subscription: assinaturaId,
+          p_plano: plano || null, p_valor_centavos: valorCentavos || 0, p_pago_em: pagoEm || null
         });
       }
     }
@@ -91,6 +105,10 @@ module.exports = async (req, res) => {
         await svc(`assinaturas?id=eq.${assinaturaId}`, {
           status: aStatus, mp_preapproval_id: String(pre.id), atualizado_em: new Date().toISOString()
         });
+        // PARCEIROS: assinatura cancelada -> cancela as comissões ainda não pagas.
+        if (pre.status === 'cancelled') {
+          await svcRpc('pv_cancelar_comissoes', { p_subscription: assinaturaId, p_reason: 'assinatura cancelada' });
+        }
       }
       if (novoPlano && tutorId && ['livre','premium','duo','familia'].indexOf(novoPlano) !== -1) {
         // BLINDAGEM DA CORTESIA: nunca sobrescrever o plano de uma conta de cortesia.
