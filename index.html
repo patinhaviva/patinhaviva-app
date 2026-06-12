@@ -1136,6 +1136,30 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
           </div>
         </div>
 
+        <!-- FINANCEIRO (carteira recorrente, movimento do mês, inadimplência, avulso) -->
+        <div class="card" id="adm-fin-card" style="margin-top:28px">
+          <div class="card-title">💰 Financeiro</div>
+          <div id="adm-fin-loading" style="font-size:.85rem;color:var(--ink-soft)">Carregando dados financeiros…</div>
+          <div id="adm-fin-erro" style="display:none;font-size:.82rem;color:var(--rose)"></div>
+          <div id="adm-fin-conteudo" style="display:none"></div>
+        </div>
+
+        <!-- LISTA DE USUÁRIOS (nome, e-mail, plano, status de pagamento, cadastro, cortesia) -->
+        <div class="card" id="adm-users-card" style="margin-top:28px">
+          <div class="card-title">👥 Usuários</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+            <input id="adm-users-busca" type="text" placeholder="Buscar por nome ou e-mail…" oninput="usersAplicarFiltro()"
+              style="flex:1;min-width:220px;padding:10px 12px;border:1px solid rgba(45,38,64,.15);border-radius:10px;font-size:.9rem">
+            <button class="btn btn-ghost btn-sm" onclick="usersCarregar()">Atualizar</button>
+          </div>
+          <div id="adm-users-fplano" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"></div>
+          <div id="adm-users-fdata" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
+          <div id="adm-users-contador" style="font-size:.78rem;color:var(--ink-soft);margin-bottom:8px"></div>
+          <div id="adm-users-loading" style="font-size:.85rem;color:var(--ink-soft)">Carregando usuários…</div>
+          <div id="adm-users-erro" style="display:none;font-size:.82rem;color:var(--rose)"></div>
+          <div id="adm-users-tabela" style="overflow-x:auto"></div>
+        </div>
+
         <!-- CORTESIA DE CONTAS (presentear planos sem cobrança) -->
         <div class="card" style="margin-top:28px">
           <div class="card-title">🎁 Cortesia de contas</div>
@@ -3538,6 +3562,153 @@ async function renderAdmin(){
 
   loading.style.display = 'none';
   conteudo.style.display = 'block';
+
+  // Cards independentes (cada um com seu próprio RPC + tratamento de erro):
+  admFinanceiro();
+  usersCarregar();
+}
+
+// ── ADMIN · FINANCEIRO + LISTA DE USUÁRIOS ──────────────────────────────
+function admBRL(cent){ return 'R$ ' + ((cent||0)/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function admPlanoLabel(p){ if(!p || p==='livre') return 'Grátis'; return (typeof PLANOS!=='undefined' && PLANOS[p] && PLANOS[p].nome) || capitalizar(p); }
+
+const ADM_STATUS = {
+  gratis:       { txt:'Grátis',       cor:'var(--ink-soft)', bg:'rgba(45,38,64,.08)' },
+  cortesia:     { txt:'Cortesia',     cor:'#fff',            bg:'var(--violet)'      },
+  ativa:        { txt:'Ativa',        cor:'#fff',            bg:'var(--teal)'        },
+  pendente:     { txt:'Pendente',     cor:'#7a5a00',         bg:'#ffe7a8'            },
+  inadimplente: { txt:'Inadimplente', cor:'#fff',            bg:'var(--rose)'        },
+  cancelada:    { txt:'Cancelada',    cor:'var(--ink-soft)', bg:'rgba(45,38,64,.08)' },
+  pausada:      { txt:'Pausada',      cor:'#7a5a00',         bg:'#ffe7a8'            },
+  manual:       { txt:'Manual',       cor:'#7a5a00',         bg:'#ffe7a8'            },
+  admin:        { txt:'Admin',        cor:'#fff',            bg:'#475569'            }
+};
+function admStatusBadge(s){
+  const m = ADM_STATUS[s] || { txt: capitalizar(s||'—'), cor:'var(--ink-soft)', bg:'rgba(45,38,64,.08)' };
+  return '<span style="background:'+m.bg+';color:'+m.cor+';border-radius:100px;padding:2px 9px;font-size:.72rem;white-space:nowrap">'+m.txt+'</span>';
+}
+
+// ── Financeiro ──
+function admFinBox(label, valor, sub, cor){
+  return '<div style="background:var(--bg);border-radius:12px;padding:14px 16px;min-width:0">'
+    + '<div style="font-size:.7rem;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em">'+label+'</div>'
+    + '<div style="font-family:\'Lora\',serif;font-weight:700;font-size:1.25rem;color:'+(cor||'var(--ink)')+';margin-top:4px">'+valor+'</div>'
+    + (sub ? '<div style="font-size:.73rem;color:var(--ink-soft);margin-top:2px">'+sub+'</div>' : '')
+    + '</div>';
+}
+async function admFinanceiro(){
+  const loading=document.getElementById('adm-fin-loading');
+  const erro=document.getElementById('adm-fin-erro');
+  const cont=document.getElementById('adm-fin-conteudo');
+  if(loading) loading.style.display='block';
+  if(erro) erro.style.display='none';
+  if(cont){ cont.style.display='none'; cont.innerHTML=''; }
+  const { data, error } = await supabase.rpc('admin_financeiro');
+  if(loading) loading.style.display='none';
+  if(error || !data){
+    if(erro){ erro.style.display='block'; erro.textContent=(error?.message||'Resposta vazia')+'. Verifique se a função admin_financeiro() foi criada no banco.'; }
+    return;
+  }
+  const d=data;
+  const ticket = d.ativos>0 ? Math.round(d.mrr_centavos/d.ativos) : 0;
+  let planoBreak;
+  { const ap=d.ativos_por_plano||{}; const ks=Object.keys(ap);
+    if(!ks.length){ planoBreak='Nenhuma assinatura ativa.'; }
+    else { const ordem=['premium','duo','familia']; ks.sort((a,b)=>ordem.indexOf(a)-ordem.indexOf(b));
+      planoBreak = ks.map(k=>admPlanoLabel(k)+': <b>'+ap[k].qtd+'</b> · '+admBRL(ap[k].centavos)+'/mês').join(' &nbsp;·&nbsp; '); } }
+  cont.innerHTML =
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">'
+    + admFinBox('Carteira recorrente', admBRL(d.mrr_centavos), 'MRR · por mês', 'var(--teal)')
+    + admFinBox('Projeção anual', admBRL(d.arr_centavos), 'ARR · MRR × 12')
+    + admFinBox('Assinantes ativos', (d.ativos||0).toLocaleString('pt-BR'), 'pagantes')
+    + admFinBox('Ticket médio', admBRL(ticket), 'por assinante')
+    + '</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px">'
+    + admFinBox('Novas (30 dias)', '+'+(d.novas_30d||0), '+'+admBRL(d.novas_30d_centavos)+'/mês', 'var(--teal)')
+    + admFinBox('Canceladas (30 dias)', '−'+(d.canceladas_30d||0), '−'+admBRL(d.churn_30d_centavos)+'/mês (churn)', d.canceladas_30d>0?'var(--rose)':'var(--ink)')
+    + admFinBox('Inadimplentes', (d.inadimplentes||0).toLocaleString('pt-BR'), admBRL(d.inadimp_centavos)+'/mês em risco', d.inadimplentes>0?'var(--rose)':'var(--ink)')
+    + admFinBox('Plaquinhas pagas', (d.plaq_pagas||0).toLocaleString('pt-BR'), admBRL(d.plaq_centavos)+' bruto')
+    + '</div>'
+    + '<div style="background:var(--bg);border-radius:12px;padding:12px 14px;margin-top:10px;font-size:.8rem;color:var(--ink-mid)">'
+    +   '<b>Ativas por plano:</b> '+planoBreak
+    + '</div>'
+    + '<div style="font-size:.72rem;color:var(--ink-soft);margin-top:10px;line-height:1.5">'
+    +   'A <b>carteira recorrente (MRR)</b> é quanto as assinaturas ativas faturam por mês (run-rate). Avulso (plaquinhas) nos últimos 30 dias: <b>'+(d.plaq_30d||0)+'</b> · '+admBRL(d.plaq_30d_centavos)+'. '
+    +   'Não guardamos cada cobrança individual do Mercado Pago — para o valor exato faturado mês a mês, dá para registrar cada pagamento do webhook (próximo passo, mesma infra de “pagamentos falhos”).'
+    + '</div>';
+  cont.style.display='block';
+}
+
+// ── Lista de usuários ──
+let admUsers = [];
+let admUserFiltroPlano = 'todos';
+let admUserFiltroData = 'tudo';
+function admChip(txt, ativo, onclick){
+  return '<button onclick="'+onclick+'" class="btn btn-sm '+(ativo?'btn-secondary':'btn-ghost')+'" style="'+(ativo?'':'opacity:.65')+'">'+txt+'</button>';
+}
+function usersRenderChips(){
+  const fp=document.getElementById('adm-users-fplano');
+  const fd=document.getElementById('adm-users-fdata');
+  const planos=[['todos','Todos'],['livre','Grátis'],['premium','Premium'],['duo','Duo'],['familia','Família']];
+  const datas=[['tudo','Tudo'],['semana','Última semana'],['mes','Último mês']];
+  if(fp) fp.innerHTML = planos.map(x=>admChip(x[1], admUserFiltroPlano===x[0], "usersSetPlano('"+x[0]+"')")).join('');
+  if(fd) fd.innerHTML = datas.map(x=>admChip(x[1], admUserFiltroData===x[0], "usersSetData('"+x[0]+"')")).join('');
+}
+function usersSetPlano(k){ admUserFiltroPlano=k; usersRenderChips(); usersAplicarFiltro(); }
+function usersSetData(k){ admUserFiltroData=k; usersRenderChips(); usersAplicarFiltro(); }
+async function usersCarregar(){
+  const loading=document.getElementById('adm-users-loading');
+  const erro=document.getElementById('adm-users-erro');
+  const tab=document.getElementById('adm-users-tabela');
+  if(loading) loading.style.display='block';
+  if(erro) erro.style.display='none';
+  if(tab) tab.innerHTML='';
+  const { data, error } = await supabase.rpc('admin_listar_usuarios');
+  if(loading) loading.style.display='none';
+  if(error || !Array.isArray(data)){
+    if(erro){ erro.style.display='block'; erro.textContent=(error?.message||'Resposta inválida')+'. Verifique se a função admin_listar_usuarios() foi criada no banco.'; }
+    return;
+  }
+  admUsers = data;
+  usersRenderChips();
+  usersAplicarFiltro();
+}
+function usersAplicarFiltro(){
+  const busca=(document.getElementById('adm-users-busca')?.value||'').trim().toLowerCase();
+  const agora=Date.now();
+  const corte = admUserFiltroData==='semana' ? agora-7*864e5 : admUserFiltroData==='mes' ? agora-30*864e5 : 0;
+  const lista = admUsers.filter(u=>{
+    if(admUserFiltroPlano!=='todos' && (u.plano||'livre')!==admUserFiltroPlano) return false;
+    if(corte){ const t=u.criado_em?Date.parse(u.criado_em):0; if(!(t>=corte)) return false; }
+    if(busca){ const hay=((u.nome||'')+' '+(u.email||'')).toLowerCase(); if(!hay.includes(busca)) return false; }
+    return true;
+  });
+  usersRenderTabela(lista);
+  const cont=document.getElementById('adm-users-contador');
+  if(cont) cont.textContent = 'Mostrando '+lista.length+' de '+admUsers.length+' usuário'+(admUsers.length===1?'':'s')+'.';
+}
+function usersRenderTabela(lista){
+  const tab=document.getElementById('adm-users-tabela'); if(!tab) return;
+  if(!lista.length){ tab.innerHTML='<div style="font-size:.85rem;color:var(--ink-soft);padding:8px 0">Nenhum usuário neste filtro.</div>'; return; }
+  const th='padding:8px 10px;text-align:left;font-size:.7rem;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em;border-bottom:1px solid rgba(45,38,64,.1);white-space:nowrap';
+  const td='padding:9px 10px;font-size:.84rem;color:var(--ink);border-bottom:1px solid rgba(45,38,64,.06);vertical-align:middle';
+  const linhas = lista.map(u=>{
+    const cort = u.cortesia ? ' <span style="background:var(--violet);color:#fff;border-radius:100px;padding:1px 7px;font-size:.65rem;vertical-align:middle">cortesia</span>' : '';
+    const adm = u.is_admin ? ' <span title="Administrador">🛡</span>' : '';
+    const data = u.criado_em ? new Date(u.criado_em).toLocaleDateString('pt-BR') : '—';
+    return '<tr>'
+      + '<td style="'+td+'"><div style="font-weight:600">'+cortEsc(u.nome||'')+adm+'</div></td>'
+      + '<td style="'+td+';color:var(--ink-mid)">'+cortEsc(u.email||'')+'</td>'
+      + '<td style="'+td+';white-space:nowrap">'+admPlanoLabel(u.plano)+cort+'</td>'
+      + '<td style="'+td+'">'+admStatusBadge(u.is_admin ? 'admin' : u.status_pagamento)+'</td>'
+      + '<td style="'+td+';white-space:nowrap;color:var(--ink-mid)">'+data+'</td>'
+      + '</tr>';
+  }).join('');
+  tab.innerHTML = '<table style="width:100%;border-collapse:collapse;min-width:560px">'
+    + '<thead><tr>'
+    +   '<th style="'+th+'">Nome</th><th style="'+th+'">E-mail</th><th style="'+th+'">Plano</th>'
+    +   '<th style="'+th+'">Pagamento</th><th style="'+th+'">Cadastro</th>'
+    + '</tr></thead><tbody>'+linhas+'</tbody></table>';
 }
 
 // ── CORTESIA DE CONTAS (Admin: presentear/revogar planos sem cobrança) ──
