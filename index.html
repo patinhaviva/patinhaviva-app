@@ -3580,7 +3580,8 @@ const ADM_STATUS = {
   inadimplente: { txt:'Inadimplente', cor:'#fff',            bg:'var(--rose)'        },
   cancelada:    { txt:'Cancelada',    cor:'var(--ink-soft)', bg:'rgba(45,38,64,.08)' },
   pausada:      { txt:'Pausada',      cor:'#7a5a00',         bg:'#ffe7a8'            },
-  manual:       { txt:'Manual',       cor:'#7a5a00',         bg:'#ffe7a8'            }
+  manual:       { txt:'Manual',       cor:'#7a5a00',         bg:'#ffe7a8'            },
+  admin:        { txt:'Admin',        cor:'#fff',            bg:'#475569'            }
 };
 function admStatusBadge(s){
   const m = ADM_STATUS[s] || { txt: capitalizar(s||'—'), cor:'var(--ink-soft)', bg:'rgba(45,38,64,.08)' };
@@ -3699,7 +3700,7 @@ function usersRenderTabela(lista){
       + '<td style="'+td+'"><div style="font-weight:600">'+cortEsc(u.nome||'')+adm+'</div></td>'
       + '<td style="'+td+';color:var(--ink-mid)">'+cortEsc(u.email||'')+'</td>'
       + '<td style="'+td+';white-space:nowrap">'+admPlanoLabel(u.plano)+cort+'</td>'
-      + '<td style="'+td+'">'+admStatusBadge(u.status_pagamento)+'</td>'
+      + '<td style="'+td+'">'+admStatusBadge(u.is_admin ? 'admin' : u.status_pagamento)+'</td>'
       + '<td style="'+td+';white-space:nowrap;color:var(--ink-mid)">'+data+'</td>'
       + '</tr>';
   }).join('');
