@@ -521,6 +521,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
         <button class="nav-item" onclick="navigate('familia')">
           <span class="nav-icon">👨‍👩‍👧</span> Minha Família
         </button>
+        <button class="nav-item" id="nav-parceiro" style="display:none" onclick="navigate('parceiro')">
+          <span class="nav-icon">🤝</span> Meu Painel
+        </button>
         <button class="nav-item" onclick="navigate('admin')">
           <span class="nav-icon">🛡</span> Admin
         </button>
@@ -1061,6 +1064,19 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
           <button class="btn btn-primary" style="width:100%" onclick="openModal('modal-plaquinha')">Pedir plaquinha</button>
         </div>
       </div>
+
+      <!-- Resgate de acesso de PARCEIRO (some quando já é parceiro) -->
+      <div class="card" id="parceiro-resgatar-box" style="display:none;margin-top:28px">
+        <div class="card-title">🤝 É parceiro da Patinha Viva?</div>
+        <p style="font-size:.82rem;color:var(--ink-soft);margin:0 0 12px">Recebeu um código de acesso de parceiro? Insira abaixo para liberar o seu painel de indicações e comissões.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <input id="parceiro-codigo-input" type="text" placeholder="PVA-XXXXXXXX" autocomplete="off"
+            style="flex:1;min-width:200px;padding:10px 12px;border:1px solid rgba(45,38,64,.15);border-radius:10px;font-size:.9rem;font-family:'DM Mono',monospace"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();resgatarCodigoParceiro();}">
+          <button class="btn btn-secondary btn-sm" onclick="resgatarCodigoParceiro()">Liberar painel</button>
+        </div>
+        <div id="parceiro-resgatar-msg" style="display:none;font-size:.82rem;margin-top:10px"></div>
+      </div>
     </div>
 
     <!-- MINHA FAMÍLIA (multi-tutor) -->
@@ -1221,6 +1237,17 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
       </div>
     </div>
 
+    <!-- PAINEL DO PARCEIRO (só aparece p/ quem é parceiro vinculado) -->
+    <div class="page" id="page-parceiro">
+      <div class="page-header">
+        <div class="page-title">Meu Painel de Parceiro 🤝</div>
+        <div class="page-subtitle">Acompanhe suas indicações e comissões</div>
+      </div>
+      <div id="parceiro-loading" class="card" style="text-align:center;padding:40px 24px;color:var(--ink-soft)">Carregando seu painel…</div>
+      <div id="parceiro-erro" class="card" style="display:none;text-align:center;padding:40px 24px;color:var(--rose)"></div>
+      <div id="parceiro-conteudo" style="display:none"></div>
+    </div>
+
   </main>
 </div>
 
@@ -1346,6 +1373,28 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
         <button class="btn btn-secondary btn-sm" onclick="parcCopiarLink()">Copiar</button>
       </div>
       <button class="btn btn-primary" style="width:100%" onclick="parcBaixarQR()">⬇ Baixar QR Code (PNG)</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Acesso do parceiro (código de login) -->
+<div class="modal-overlay" id="modal-parceiro-acesso">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🔑 Acesso do parceiro</div>
+      <button class="modal-close" onclick="closeModal('modal-parceiro-acesso')">✕</button>
+    </div>
+    <div class="modal-form">
+      <div id="parc-ac-nome" style="font-weight:600;margin-bottom:4px"></div>
+      <p style="font-size:.82rem;color:var(--ink-soft);margin:0 0 14px">Envie este acesso ao parceiro. Ele cria uma conta (ou faz login) e o painel é liberado automaticamente. <b>O código é secreto e de uso único.</b></p>
+      <div style="font-size:.78rem;color:var(--ink-soft);margin-bottom:4px">Código de acesso</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+        <input id="parc-ac-codigo" type="text" readonly onclick="this.select()"
+          style="flex:1;min-width:160px;padding:10px 12px;border:1px solid rgba(45,38,64,.15);border-radius:10px;font-size:.95rem;font-family:'DM Mono',monospace;letter-spacing:.05em">
+        <button class="btn btn-secondary btn-sm" onclick="parcAcCopiar()">Copiar</button>
+      </div>
+      <a id="parc-ac-wa" class="btn" style="width:100%;background:#25D366;color:#fff;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px" target="_blank" rel="noopener">📲 Enviar acesso no WhatsApp</a>
+      <button class="btn btn-ghost btn-sm" style="width:100%;color:var(--rose)" onclick="parcRevogarAcesso()">Revogar acesso atual</button>
     </div>
   </div>
 </div>
@@ -2184,6 +2233,14 @@ async function initApp(user) {
   // Parceiros/afiliados: vincula a conta ao parceiro indicador (?ref= guardado no
   // boot, vale 30 dias). Idempotente e TRAVADO (1 parceiro por cliente) no banco.
   try { await aplicarRefParceiro(); } catch(e){}
+
+  // Painel do parceiro: resgata o código de acesso pendente (?parceiro= ou colado),
+  // depois detecta se esta conta é parceiro (mostra o nav "Meu Painel").
+  try {
+    const pc = sessionStorage.getItem('pv_parceiro_code');
+    if(pc){ sessionStorage.removeItem('pv_parceiro_code'); await supabase.rpc('pv_parceiro_resgatar_codigo', { p_code: pc }); }
+  } catch(e){}
+  try { await aplicarPainelParceiro(); } catch(e){}
 
   // Sininho 🔔: carrega notificações no boot e atualiza a cada 60s
   carregarNotificacoes();
@@ -3616,6 +3673,12 @@ window.addEventListener('load', async () => {
     }
   } catch(e){}
 
+  // Painel do parceiro: link de acesso (?parceiro=PVA-XXXX) — guarda e aplica pós-login.
+  try {
+    const pParam = (new URLSearchParams(window.location.search).get('parceiro')||'').trim();
+    if(pParam){ sessionStorage.setItem('pv_parceiro_code', pParam.toUpperCase()); }
+  } catch(e){}
+
   // Multi-tutor: link de convite (?convite=CODIGO) — guarda o código e processa
   // após o login (vale tanto p/ quem já tem sessão quanto p/ quem vai criar conta).
   let conviteParam = '';
@@ -3689,6 +3752,9 @@ function navigate(page) {
   }
   if(page === 'admin'){
     renderAdmin();
+  }
+  if(page === 'parceiro'){
+    renderParceiro();
   }
   if(page === 'familia'){
     renderFamilia();
@@ -4141,6 +4207,7 @@ function parcRenderTabela(lista){
       + '<td style="'+td+';white-space:nowrap">'
         + '<button class="btn btn-ghost btn-sm" onclick="parcEditar(\''+p.id+'\')">Editar</button> '
         + '<button class="btn btn-secondary btn-sm" onclick="parcAbrirQR(\''+esc(p.code)+'\',\''+esc((p.nome_fantasia||'').replace(/[\x27"]/g,"")) +'\')">Link/QR</button> '
+        + '<button class="btn btn-ghost btn-sm" onclick="parcGerarAcesso(\''+p.id+'\')">'+(p.tem_acesso?'🔑 Acesso':'Gerar acesso')+'</button> '
         + '<button class="btn btn-ghost btn-sm" onclick="comissoesCarregar(\''+p.id+'\')">Comissões</button>'
       + '</td></tr>';
   });
@@ -4292,6 +4359,177 @@ async function comMarcar(id, status){
   if(error){ alert('Erro: '+error.message); return; }
   comissoesCarregar();
   parcCarregar(); // atualiza os totais de comissão na lista de parceiros
+}
+
+// ── ADMIN · gerar/revogar acesso de login do parceiro ──
+let parcAcAtual = null;
+async function parcGerarAcesso(id){
+  const p = parcDados.find(x=>x.id===id); if(!p) return;
+  if(p.tem_acesso && !confirm('Este parceiro já tem um login vinculado. Gerar um novo código NÃO desvincula o atual — use "Revogar" para isso. Gerar mesmo assim?')) return;
+  const { data, error } = await supabase.rpc('admin_parceiro_gerar_acesso', { p_partner: id });
+  if(error){ alert('Erro: '+error.message); return; }
+  parcAcAtual = id;
+  document.getElementById('parc-ac-nome').textContent = p.nome_fantasia + ' · ' + p.code;
+  document.getElementById('parc-ac-codigo').value = data.acesso_codigo;
+  const link = 'https://patinhaviva-app.vercel.app/?parceiro=' + encodeURIComponent(data.acesso_codigo);
+  const msg = 'Olá! 🐾 Aqui está o seu acesso ao Painel de Parceiro da Patinha Viva.\n\n'
+    + 'Entre por este link, crie sua conta (ou faça login) e o painel é liberado na hora:\n' + link
+    + '\n\nSe preferir, use o código de acesso: ' + data.acesso_codigo;
+  document.getElementById('parc-ac-wa').href = 'https://wa.me/?text=' + encodeURIComponent(msg);
+  openModal('modal-parceiro-acesso');
+  parcCarregar();
+}
+function parcAcCopiar(){
+  const inp=document.getElementById('parc-ac-codigo'); if(!inp) return;
+  inp.select(); navigator.clipboard?.writeText(inp.value).catch(()=>{ try{document.execCommand('copy');}catch(e){} });
+}
+async function parcRevogarAcesso(){
+  if(!parcAcAtual) return;
+  if(!confirm('Revogar o acesso atual? O parceiro perderá o login e o código será invalidado.')) return;
+  const { error } = await supabase.rpc('admin_parceiro_revogar_acesso', { p_partner: parcAcAtual });
+  if(error){ alert('Erro: '+error.message); return; }
+  closeModal('modal-parceiro-acesso');
+  parcCarregar();
+}
+
+// ── PAINEL DO PARCEIRO (login Supabase reusado) ───────────
+let painelParceiro = null;
+
+// Detecta se a conta logada é um parceiro vinculado e revela o nav "Meu Painel".
+async function aplicarPainelParceiro(){
+  try { const { data } = await supabase.rpc('pv_meu_painel'); painelParceiro = data || null; }
+  catch(e){ painelParceiro = null; }
+  const ehParceiro = !!(painelParceiro && painelParceiro.is_parceiro);
+  const nav = document.getElementById('nav-parceiro');
+  if(nav) nav.style.display = ehParceiro ? 'flex' : 'none';
+  const box = document.getElementById('parceiro-resgatar-box');
+  if(box) box.style.display = ehParceiro ? 'none' : 'block';
+}
+
+// Resgate manual do código de acesso (caixa em "Meu Plano").
+async function resgatarCodigoParceiro(){
+  const inp = document.getElementById('parceiro-codigo-input');
+  const msg = document.getElementById('parceiro-resgatar-msg');
+  const code = (inp?.value||'').trim();
+  const aviso = (t,ok) => { if(msg){ msg.style.display='block'; msg.style.color = ok?'var(--teal)':'var(--rose)'; msg.textContent=t; } };
+  if(!code){ aviso('Informe o código de acesso.'); return; }
+  const { data, error } = await supabase.rpc('pv_parceiro_resgatar_codigo', { p_code: code });
+  if(error){ aviso('Erro: '+error.message); return; }
+  if(data && data.ok){
+    await aplicarPainelParceiro();
+    alert('Pronto! 🤝 Você agora tem acesso ao painel de parceiro'+(data.nome_fantasia?' ('+data.nome_fantasia+')':'')+'.');
+    navigate('parceiro');
+  } else {
+    const motivos = { 'code-not-found':'Código inválido ou parceiro inativo.', 'already-claimed':'Este parceiro já tem um acesso vinculado.', 'no-auth':'Faça login primeiro.', 'no-code':'Informe o código.' };
+    aviso(motivos[data && data.reason] || 'Não foi possível liberar o painel.');
+  }
+}
+
+let painelQRCode = '';
+function renderParceiro(){
+  const loading=document.getElementById('parceiro-loading');
+  const erro=document.getElementById('parceiro-erro');
+  const cont=document.getElementById('parceiro-conteudo');
+  loading.style.display='block'; erro.style.display='none'; cont.style.display='none';
+  supabase.rpc('pv_meu_painel').then(({ data, error }) => {
+    loading.style.display='none';
+    if(error){ erro.style.display='block'; erro.textContent=(error.message||'Erro')+'.'; return; }
+    painelParceiro = data;
+    if(!data || !data.is_parceiro){
+      erro.style.display='block';
+      erro.textContent='Esta conta ainda não está vinculada a um parceiro. Se você recebeu um código, insira-o em "Meu Plano".';
+      return;
+    }
+    painelMontar(data);
+    cont.style.display='block';
+  });
+}
+
+function painelMontar(d){
+  const cont=document.getElementById('parceiro-conteudo');
+  painelQRCode = d.code;
+  const link = 'https://patinhaviva.com.br/?ref=' + encodeURIComponent(d.code);
+  const niv = PARC_NIVEL[d.nivel] || PARC_NIVEL.bronze;
+  const prox = d.proximo_nivel ? (PARC_NIVEL[d.proximo_nivel]||{txt:d.proximo_nivel,pct:''}) : null;
+  const proxTxt = prox
+    ? ('Faltam <b>'+d.faltam_proximo+'</b> assinante(s) ativo(s) para o nível '+prox.txt+' e passar a receber <b>'+prox.pct+'%</b>.')
+    : 'Você está no nível máximo 🎉 — comissão de '+niv.pct+'%.';
+
+  let hist = '';
+  const h = d.historico || [];
+  if(h.length){
+    const th='text-align:left;padding:7px 10px;font-size:.72rem;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap;border-bottom:1px solid rgba(45,38,64,.08)';
+    const td='padding:7px 10px;font-size:.84rem;border-bottom:1px solid rgba(45,38,64,.05)';
+    hist = '<table style="width:100%;border-collapse:collapse;min-width:420px"><thead><tr>'
+      + '<th style="'+th+'">Mês</th><th style="'+th+'">Comissões</th><th style="'+th+'">Pendente</th><th style="'+th+'">Paga</th></tr></thead><tbody>'
+      + h.map(m => '<tr><td style="'+td+';white-space:nowrap">'+esc((m.mes||'').slice(0,7).split('-').reverse().join('/'))+'</td>'
+          + '<td style="'+td+'">'+(m.qtd||0)+' · '+admBRL(m.total_centavos)+'</td>'
+          + '<td style="'+td+'">'+admBRL(m.pendente_centavos)+'</td>'
+          + '<td style="'+td+';color:var(--teal)">'+admBRL(m.paga_centavos)+'</td></tr>').join('')
+      + '</tbody></table>';
+  } else {
+    hist = '<div style="font-size:.85rem;color:var(--ink-soft)">Ainda sem comissões. Elas aparecem quando um cliente indicado paga.</div>';
+  }
+
+  cont.innerHTML =
+    '<div class="grid-2">'
+    // Cartão de nível + link/QR
+    + '<div class="card" style="border:2px solid rgba(124,47,214,.2)">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px">'
+        + '<div style="font-family:\'Lora\',serif;font-size:1.25rem;color:var(--ink)">'+esc(d.nome_fantasia)+'</div>'
+        + '<span style="background:var(--violet);color:#fff;border-radius:100px;padding:3px 12px;font-size:.8rem">'+niv.txt+' · '+niv.pct+'%</span>'
+      + '</div>'
+      + '<div style="font-size:.8rem;color:var(--ink-soft);font-family:\'DM Mono\',monospace;margin-bottom:12px">'+esc(d.code)+'</div>'
+      + '<div style="background:rgba(124,47,214,.07);border-radius:12px;padding:12px 14px;font-size:.84rem;color:var(--ink-mid);line-height:1.5;margin-bottom:14px">'
+        + 'Você está no nível <b>'+capitalizar(d.nivel)+'</b> e recebe <b>'+niv.pct+'%</b> de comissão recorrente. '+proxTxt
+      + '</div>'
+      + '<div style="font-size:.78rem;color:var(--ink-soft);margin-bottom:6px">Seu link exclusivo</div>'
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">'
+        + '<input id="painel-link" type="text" readonly value="'+esc(link)+'" onclick="this.select()" style="flex:1;min-width:180px;padding:9px 12px;border:1px solid rgba(45,38,64,.15);border-radius:10px;font-size:.82rem;font-family:\'DM Mono\',monospace">'
+        + '<button class="btn btn-secondary btn-sm" onclick="painelCopiarLink()">Copiar</button>'
+      + '</div>'
+      + '<div style="font-size:.78rem;color:var(--ink-soft);margin-bottom:6px">Seu QR Code</div>'
+      + '<div id="painel-qr" style="display:flex;justify-content:center;min-height:180px;margin-bottom:10px"></div>'
+      + '<button class="btn btn-primary" style="width:100%" onclick="painelBaixarQR()">⬇ Baixar QR Code (PNG)</button>'
+      + '<p style="font-size:.76rem;color:var(--ink-soft);margin:10px 0 0;line-height:1.5">Compartilhe este QR Code na recepção, balcão, redes sociais ou materiais impressos. A comissão é recorrente: você recebe enquanto o cliente indicado permanecer assinante ativo.</p>'
+    + '</div>'
+    // Cartão de métricas
+    + '<div class="card">'
+      + '<div class="card-title">Seus números</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px">'
+        + admFinBox('Cliques', (d.cliques||0).toLocaleString('pt-BR'), 'no seu link/QR')
+        + admFinBox('Cadastros', (d.cadastros||0).toLocaleString('pt-BR'), 'contas criadas')
+        + admFinBox('Assinantes ativos', (d.ativos||0).toLocaleString('pt-BR'), 'pagantes', 'var(--teal)')
+      + '</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-top:10px">'
+        + admFinBox('Comissão do mês', admBRL(d.comissao_mes_centavos), 'estimada', 'var(--violet)')
+        + admFinBox('A receber', admBRL(d.comissao_pendente_centavos), 'pendente+aprovada')
+        + admFinBox('Já recebido', admBRL(d.comissao_paga_centavos), 'total pago', 'var(--teal)')
+      + '</div>'
+      + '<div style="background:#fff7e6;border:1px solid #ffe7a8;border-radius:10px;padding:10px 12px;font-size:.78rem;color:#7a5a00;margin-top:14px">⏳ A comissão só é validada após a confirmação do pagamento do cliente. Cancelamento, inadimplência ou estorno cancelam a comissão do período.</div>'
+    + '</div>'
+    + '</div>'
+    // Histórico
+    + '<div class="card" style="margin-top:28px"><div class="card-title">📅 Histórico mensal</div><div style="overflow-x:auto">'+hist+'</div></div>';
+
+  // Gera o QR no container recém-criado.
+  const el=document.getElementById('painel-qr');
+  if(el){
+    el.innerHTML='';
+    if(typeof QRCode!=='undefined'){ new QRCode(el, { text: link, width:170, height:170, correctLevel: QRCode.CorrectLevel.M }); }
+    else { el.textContent='Não foi possível carregar o gerador de QR Code.'; }
+  }
+}
+function painelCopiarLink(){
+  const inp=document.getElementById('painel-link'); if(!inp) return;
+  inp.select(); navigator.clipboard?.writeText(inp.value).catch(()=>{ try{document.execCommand('copy');}catch(e){} });
+}
+function painelBaixarQR(){
+  const canvas=document.querySelector('#painel-qr canvas');
+  if(!canvas){ alert('QR Code ainda não gerado.'); return; }
+  const a=document.createElement('a'); a.href=canvas.toDataURL('image/png');
+  a.download='qrcode-'+(painelQRCode||'parceiro')+'.png';
+  document.body.appendChild(a); a.click(); a.remove();
 }
 
 // ── SIDEBAR MOBILE ────────────────────────────────────────
