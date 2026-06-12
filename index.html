@@ -1160,6 +1160,16 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
           <div id="adm-users-tabela" style="overflow-x:auto"></div>
         </div>
 
+        <!-- ÚLTIMOS PAGAMENTOS (ledger de cobranças do Mercado Pago) -->
+        <div class="card" id="adm-pag-card" style="margin-top:28px">
+          <div class="card-title">🧾 Últimos pagamentos</div>
+          <p style="font-size:.82rem;color:var(--ink-soft);margin:0 0 12px">Cada cobrança recorrente registrada pelo Mercado Pago. <b>Recusado</b> = falha de pagamento (a conta vira "Inadimplente").</p>
+          <div style="margin-bottom:10px"><button class="btn btn-ghost btn-sm" onclick="pagCarregar()">Atualizar</button></div>
+          <div id="adm-pag-loading" style="font-size:.85rem;color:var(--ink-soft)">Carregando pagamentos…</div>
+          <div id="adm-pag-erro" style="display:none;font-size:.82rem;color:var(--rose)"></div>
+          <div id="adm-pag-tabela" style="overflow-x:auto"></div>
+        </div>
+
         <!-- CORTESIA DE CONTAS (presentear planos sem cobrança) -->
         <div class="card" style="margin-top:28px">
           <div class="card-title">🎁 Cortesia de contas</div>
@@ -3566,6 +3576,7 @@ async function renderAdmin(){
   // Cards independentes (cada um com seu próprio RPC + tratamento de erro):
   admFinanceiro();
   usersCarregar();
+  pagCarregar();
 }
 
 // ── ADMIN · FINANCEIRO + LISTA DE USUÁRIOS ──────────────────────────────
@@ -3581,7 +3592,10 @@ const ADM_STATUS = {
   cancelada:    { txt:'Cancelada',    cor:'var(--ink-soft)', bg:'rgba(45,38,64,.08)' },
   pausada:      { txt:'Pausada',      cor:'#7a5a00',         bg:'#ffe7a8'            },
   manual:       { txt:'Manual',       cor:'#7a5a00',         bg:'#ffe7a8'            },
-  admin:        { txt:'Admin',        cor:'#fff',            bg:'#475569'            }
+  admin:        { txt:'Admin',        cor:'#fff',            bg:'#475569'            },
+  aprovado:     { txt:'Aprovado',     cor:'#fff',            bg:'var(--teal)'        },
+  recusado:     { txt:'Recusado',     cor:'#fff',            bg:'var(--rose)'        },
+  outro:        { txt:'Outro',        cor:'var(--ink-soft)', bg:'rgba(45,38,64,.08)' }
 };
 function admStatusBadge(s){
   const m = ADM_STATUS[s] || { txt: capitalizar(s||'—'), cor:'var(--ink-soft)', bg:'rgba(45,38,64,.08)' };
@@ -3618,7 +3632,8 @@ async function admFinanceiro(){
       planoBreak = ks.map(k=>admPlanoLabel(k)+': <b>'+ap[k].qtd+'</b> · '+admBRL(ap[k].centavos)+'/mês').join(' &nbsp;·&nbsp; '); } }
   cont.innerHTML =
     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">'
-    + admFinBox('Carteira recorrente', admBRL(d.mrr_centavos), 'MRR · por mês', 'var(--teal)')
+    + admFinBox('Carteira recorrente', admBRL(d.mrr_centavos), 'MRR · run-rate/mês', 'var(--teal)')
+    + admFinBox('Faturado (30 dias)', admBRL(d.faturado_30d), 'cobranças aprovadas', 'var(--teal)')
     + admFinBox('Projeção anual', admBRL(d.arr_centavos), 'ARR · MRR × 12')
     + admFinBox('Assinantes ativos', (d.ativos||0).toLocaleString('pt-BR'), 'pagantes')
     + admFinBox('Ticket médio', admBRL(ticket), 'por assinante')
@@ -3633,8 +3648,8 @@ async function admFinanceiro(){
     +   '<b>Ativas por plano:</b> '+planoBreak
     + '</div>'
     + '<div style="font-size:.72rem;color:var(--ink-soft);margin-top:10px;line-height:1.5">'
-    +   'A <b>carteira recorrente (MRR)</b> é quanto as assinaturas ativas faturam por mês (run-rate). Avulso (plaquinhas) nos últimos 30 dias: <b>'+(d.plaq_30d||0)+'</b> · '+admBRL(d.plaq_30d_centavos)+'. '
-    +   'Não guardamos cada cobrança individual do Mercado Pago — para o valor exato faturado mês a mês, dá para registrar cada pagamento do webhook (próximo passo, mesma infra de “pagamentos falhos”).'
+    +   'A <b>carteira recorrente (MRR)</b> é o run-rate das assinaturas ativas; o <b>Faturado (30 dias)</b> é o que foi de fato cobrado e aprovado no período (registrado a cada renovação do Mercado Pago). '
+    +   'Avulso (plaquinhas) nos últimos 30 dias: <b>'+(d.plaq_30d||0)+'</b> · '+admBRL(d.plaq_30d_centavos)+'. Cobranças recusadas no período: <b>'+(d.falhas_30d||0)+'</b> — quem falha vira “Inadimplente” na lista de usuários.'
     + '</div>';
   cont.style.display='block';
 }
@@ -3708,6 +3723,45 @@ function usersRenderTabela(lista){
     + '<thead><tr>'
     +   '<th style="'+th+'">Nome</th><th style="'+th+'">E-mail</th><th style="'+th+'">Plano</th>'
     +   '<th style="'+th+'">Pagamento</th><th style="'+th+'">Cadastro</th>'
+    + '</tr></thead><tbody>'+linhas+'</tbody></table>';
+}
+
+// ── Últimos pagamentos (ledger de cobranças do Mercado Pago) ──
+async function pagCarregar(){
+  const loading=document.getElementById('adm-pag-loading');
+  const erro=document.getElementById('adm-pag-erro');
+  const tab=document.getElementById('adm-pag-tabela');
+  if(loading) loading.style.display='block';
+  if(erro) erro.style.display='none';
+  if(tab) tab.innerHTML='';
+  const { data, error } = await supabase.rpc('admin_pagamentos', { p_limit: 100 });
+  if(loading) loading.style.display='none';
+  if(error || !Array.isArray(data)){
+    if(erro){ erro.style.display='block'; erro.textContent=(error?.message||'Resposta inválida')+'. Verifique se a função admin_pagamentos() foi criada no banco.'; }
+    return;
+  }
+  pagRenderTabela(data);
+}
+function pagRenderTabela(lista){
+  const tab=document.getElementById('adm-pag-tabela'); if(!tab) return;
+  if(!lista.length){ tab.innerHTML='<div style="font-size:.85rem;color:var(--ink-soft);padding:8px 0">Nenhuma cobrança registrada ainda. As renovações das assinaturas aparecerão aqui.</div>'; return; }
+  const th='padding:8px 10px;text-align:left;font-size:.7rem;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em;border-bottom:1px solid rgba(45,38,64,.1);white-space:nowrap';
+  const td='padding:9px 10px;font-size:.84rem;color:var(--ink);border-bottom:1px solid rgba(45,38,64,.06);vertical-align:middle';
+  const linhas=lista.map(p=>{
+    const data = p.data ? new Date(p.data).toLocaleDateString('pt-BR') : '—';
+    return '<tr>'
+      + '<td style="'+td+'"><div style="font-weight:600">'+cortEsc(p.nome||'')+'</div></td>'
+      + '<td style="'+td+';color:var(--ink-mid)">'+cortEsc(p.email||'')+'</td>'
+      + '<td style="'+td+';white-space:nowrap">'+admPlanoLabel(p.plano)+'</td>'
+      + '<td style="'+td+';white-space:nowrap">'+admBRL(p.valor_centavos)+'</td>'
+      + '<td style="'+td+'">'+admStatusBadge(p.status)+'</td>'
+      + '<td style="'+td+';white-space:nowrap;color:var(--ink-mid)">'+data+'</td>'
+      + '</tr>';
+  }).join('');
+  tab.innerHTML='<table style="width:100%;border-collapse:collapse;min-width:580px">'
+    + '<thead><tr>'
+    +   '<th style="'+th+'">Tutor</th><th style="'+th+'">E-mail</th><th style="'+th+'">Plano</th>'
+    +   '<th style="'+th+'">Valor</th><th style="'+th+'">Status</th><th style="'+th+'">Data</th>'
     + '</tr></thead><tbody>'+linhas+'</tbody></table>';
 }
 
