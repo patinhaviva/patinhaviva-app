@@ -374,6 +374,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
       <div style="font-size:.76rem;color:var(--ink-soft);margin-top:4px">Cobrança mensal · cancele quando quiser</div>
     </div>
 
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      <span style="font-size:.82rem;color:var(--ink-soft);white-space:nowrap">🎟️ Tem um cupom?</span>
+      <input id="sub-cupom" type="text" placeholder="Código do cupom" autocomplete="off"
+             oninput="this.value=this.value.toUpperCase()"
+             style="flex:1;min-width:150px;padding:9px 12px;border:1.5px solid rgba(124,47,214,.2);border-radius:10px;font-size:.85rem;text-transform:uppercase"/>
+    </div>
+
     <div id="sub-erro" style="display:none;background:rgba(240,40,74,.1);border:1px solid rgba(240,40,74,.2);color:#C0002A;padding:10px 14px;border-radius:10px;font-size:.85rem;margin-bottom:12px"></div>
 
     <!-- MODO: criar conta (novo cliente) -->
@@ -1202,6 +1209,59 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
           <div id="cort-share" style="display:none;margin-top:10px"></div>
         </div>
 
+        <!-- CUPONS PROMOCIONAIS (mês grátis no checkout) -->
+        <div class="card" id="adm-cup-card" style="margin-top:28px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+            <div class="card-title" style="margin:0">🎟️ Cupons</div>
+            <button class="btn btn-primary btn-sm" onclick="cupNovo()">+ Novo cupom</button>
+          </div>
+          <p style="font-size:.82rem;color:var(--ink-soft);margin:8px 0 14px">Cupom de campanha que dá <b>mês(es) grátis</b> ao cliente no checkout. Crie quando quiser uma promoção e desative quando acabar — sem cupom ativo, todos pagam o preço normal. A 1ª cobrança só acontece após o período grátis.</p>
+
+          <!-- formulário de criação/edição (oculto até clicar em + Novo cupom) -->
+          <div id="cup-form" style="display:none;background:rgba(124,47,214,.04);border:1px solid rgba(124,47,214,.15);border-radius:12px;padding:14px;margin-bottom:16px">
+            <input type="hidden" id="cup-id">
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <div style="flex:1;min-width:170px">
+                <label class="form-label">Código do cupom</label>
+                <input id="cup-codigo" type="text" placeholder="PATINHA1MES" autocomplete="off" oninput="this.value=this.value.toUpperCase().replace(/\s/g,'')"
+                  style="width:100%;padding:10px 12px;border:1px solid rgba(45,38,64,.15);border-radius:10px;font-size:.9rem;text-transform:uppercase">
+              </div>
+              <div style="width:130px">
+                <label class="form-label">Meses grátis</label>
+                <input id="cup-valor" type="number" min="1" max="12" value="1"
+                  style="width:100%;padding:10px 12px;border:1px solid rgba(45,38,64,.15);border-radius:10px;font-size:.9rem">
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+              <div style="flex:1;min-width:150px">
+                <label class="form-label">Validade <span style="color:var(--ink-soft);font-weight:400">(opcional)</span></label>
+                <input id="cup-validade" type="date"
+                  style="width:100%;padding:10px 12px;border:1px solid rgba(45,38,64,.15);border-radius:10px;font-size:.9rem">
+              </div>
+              <div style="flex:1;min-width:150px">
+                <label class="form-label">Limite de usos <span style="color:var(--ink-soft);font-weight:400">(opcional)</span></label>
+                <input id="cup-limite" type="number" min="1" placeholder="ilimitado"
+                  style="width:100%;padding:10px 12px;border:1px solid rgba(45,38,64,.15);border-radius:10px;font-size:.9rem">
+              </div>
+            </div>
+            <div style="margin-top:10px">
+              <label class="form-label">Descrição <span style="color:var(--ink-soft);font-weight:400">(interna, opcional)</span></label>
+              <input id="cup-desc" type="text" placeholder="Ex.: Campanha Dia do Animal" autocomplete="off"
+                style="width:100%;padding:10px 12px;border:1px solid rgba(45,38,64,.15);border-radius:10px;font-size:.9rem">
+            </div>
+            <div id="cup-form-erro" style="display:none;font-size:.82rem;color:var(--rose);margin-top:10px"></div>
+            <div style="display:flex;gap:8px;margin-top:14px">
+              <button class="btn btn-primary btn-sm" onclick="cupSalvar()">Salvar cupom</button>
+              <button class="btn btn-ghost btn-sm" onclick="cupCancelar()">Cancelar</button>
+            </div>
+          </div>
+
+          <div style="margin-bottom:10px"><button class="btn btn-ghost btn-sm" onclick="cupCarregar()">Atualizar</button></div>
+          <div id="adm-cup-loading" style="font-size:.85rem;color:var(--ink-soft)">Carregando cupons…</div>
+          <div id="adm-cup-erro" style="display:none;font-size:.82rem;color:var(--rose)"></div>
+          <div id="adm-cup-tabela" style="overflow-x:auto"></div>
+        </div>
+
         <!-- PARCEIROS / AFILIADOS -->
         <div class="card" id="adm-parc-card" style="margin-top:28px">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
@@ -1824,6 +1884,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
       </div>
 
     </div>
+    <div style="margin-top:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:.82rem;color:var(--ink-soft)">🎟️ Tem um cupom?</span>
+      <input id="cupom-planos" type="text" placeholder="Código do cupom" autocomplete="off"
+             oninput="this.value=this.value.toUpperCase()"
+             style="flex:1;min-width:160px;padding:8px 12px;border:1.5px solid rgba(124,47,214,.2);border-radius:10px;font-size:.85rem;text-transform:uppercase"/>
+    </div>
     <div id="planos-erro" style="display:none;font-size:.82rem;color:var(--rose);margin-top:14px"></div>
   </div>
 </div>
@@ -2039,9 +2105,10 @@ async function subscribeRegister(){
     // Cria a conta JÁ CONFIRMADA + a assinatura no servidor (a confirmação de
     // e-mail dos cadastros GRATUITOS continua ligada; aqui o cartão + a dupla
     // digitação do e-mail fazem a validação).
+    const cupom = ((document.getElementById('sub-cupom')||{}).value || '').trim();
     const resp = await fetch('/api/criar-conta-e-assinar', {
       method:'POST', headers:{ 'Content-Type':'application/json' },
-      body: JSON.stringify({ email, password: pass, plano: window.__subscribePlano })
+      body: JSON.stringify({ email, password: pass, plano: window.__subscribePlano, cupom })
     });
     const out = await resp.json().catch(()=>({}));
     if(resp.status === 503 || out.error === 'config'){ if(btn) showLoading(btn,false); subErro('Pagamentos em configuração — disponível em breve. 🐾'); return; }
@@ -2097,9 +2164,10 @@ async function subscribeCheckout(plano, btn){
     const { data:{ session } } = await supabase.auth.getSession();
     if(!session){ subErro('Sua sessão expirou. Tente novamente.'); if(btn) showLoading(btn,false); return; }
     if(btn){ btn.disabled = true; btn.style.opacity = '0.7'; btn.textContent = 'Indo para o pagamento…'; }
+    const cupom = ((document.getElementById('sub-cupom')||{}).value || '').trim();
     const resp = await fetch('/api/criar-assinatura', {
       method:'POST', headers:{ 'Content-Type':'application/json' },
-      body: JSON.stringify({ access_token: session.access_token, plano })
+      body: JSON.stringify({ access_token: session.access_token, plano, cupom })
     });
     const out = await resp.json().catch(()=>({}));
     if(resp.status === 503 || out.error === 'config'){ subErro('Pagamentos em configuração — disponível em breve. 🐾'); if(btn) showLoading(btn,false); return; }
@@ -3827,6 +3895,7 @@ async function renderAdmin(){
   admFinanceiro();
   usersCarregar();
   pagCarregar();
+  cupCarregar();
   parcCarregar();
   comissoesCarregar();
 }
@@ -4361,6 +4430,96 @@ async function comMarcar(id, status){
   parcCarregar(); // atualiza os totais de comissão na lista de parceiros
 }
 
+// ── ADMIN · CUPONS PROMOCIONAIS (mês grátis no checkout) ──────────────────
+let cupDados = [];
+async function cupCarregar(){
+  const loading=document.getElementById('adm-cup-loading');
+  const erro=document.getElementById('adm-cup-erro');
+  if(loading) loading.style.display='block';
+  if(erro) erro.style.display='none';
+  const { data, error } = await supabase.rpc('admin_cupons_listar');
+  if(loading) loading.style.display='none';
+  if(error){ if(erro){ erro.style.display='block'; erro.textContent=(error.message||'Erro')+'. Verifique se patinhaviva_cupons.sql foi rodado no banco.'; } return; }
+  cupDados = data || [];
+  cupRenderTabela(cupDados);
+}
+function cupBadge(txt, cor, bg){
+  return '<span style="display:inline-block;padding:2px 9px;border-radius:100px;font-size:.74rem;font-weight:600;color:'+cor+';background:'+bg+'">'+txt+'</span>';
+}
+function cupRenderTabela(lista){
+  const wrap=document.getElementById('adm-cup-tabela');
+  if(!wrap) return;
+  if(!lista.length){ wrap.innerHTML='<div style="font-size:.85rem;color:var(--ink-soft);padding:8px 0">Nenhum cupom. Clique em “+ Novo cupom” para criar uma promoção.</div>'; return; }
+  const th='text-align:left;padding:8px 10px;font-size:.72rem;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap;border-bottom:1px solid rgba(45,38,64,.08)';
+  const td='padding:8px 10px;font-size:.84rem;border-bottom:1px solid rgba(45,38,64,.05);vertical-align:middle';
+  let h='<table style="width:100%;border-collapse:collapse;min-width:720px"><thead><tr>'
+    + '<th style="'+th+'">Código</th><th style="'+th+'">Benefício</th><th style="'+th+'">Validade</th>'
+    + '<th style="'+th+'">Usos</th><th style="'+th+'">Status</th><th style="'+th+'">Ações</th></tr></thead><tbody>';
+  lista.forEach(c=>{
+    const n = c.valor||1;
+    const benef = n+' mês'+(n>1?'es':'')+' grátis';
+    const val = c.validade ? c.validade.split('-').reverse().join('/') : '—';
+    const usos = (c.usos||0) + (c.limite_usos!=null ? ' / '+c.limite_usos : '');
+    let badge;
+    if(!c.ativo)        badge = cupBadge('Inativo',  'var(--ink-soft)','rgba(45,38,64,.08)');
+    else if(c.expirado) badge = cupBadge('Expirado', '#9a6700','rgba(255,193,7,.15)');
+    else if(c.esgotado) badge = cupBadge('Esgotado', '#9a6700','rgba(255,193,7,.15)');
+    else                badge = cupBadge('Ativo',    '#1a7f37','rgba(31,136,61,.12)');
+    const tog = c.ativo
+      ? '<button class="btn btn-ghost btn-sm" onclick="cupToggle(\''+c.id+'\',false)">Desativar</button>'
+      : '<button class="btn btn-secondary btn-sm" onclick="cupToggle(\''+c.id+'\',true)">Ativar</button>';
+    h += '<tr>'
+      + '<td style="'+td+';font-family:\'DM Mono\',monospace;font-weight:600;white-space:nowrap">'+esc(c.codigo)+(c.descricao?'<div style="font-size:.72rem;color:var(--ink-soft);font-family:inherit;font-weight:400">'+esc(c.descricao)+'</div>':'')+'</td>'
+      + '<td style="'+td+';white-space:nowrap">'+benef+'</td>'
+      + '<td style="'+td+';white-space:nowrap">'+esc(val)+'</td>'
+      + '<td style="'+td+';white-space:nowrap">'+esc(String(usos))+'</td>'
+      + '<td style="'+td+'">'+badge+'</td>'
+      + '<td style="'+td+';white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="cupEditar(\''+c.id+'\')">Editar</button> '+tog+'</td>'
+      + '</tr>';
+  });
+  h+='</tbody></table>';
+  wrap.innerHTML=h;
+}
+function cupLimparForm(){
+  ['id','codigo','validade','limite','desc'].forEach(k=>{ const el=document.getElementById('cup-'+k); if(el) el.value=''; });
+  const v=document.getElementById('cup-valor'); if(v) v.value='1';
+  const er=document.getElementById('cup-form-erro'); if(er) er.style.display='none';
+}
+function cupNovo(){ cupLimparForm(); document.getElementById('cup-form').style.display='block'; }
+function cupEditar(id){
+  const c=cupDados.find(x=>x.id===id); if(!c) return;
+  cupLimparForm();
+  document.getElementById('cup-id').value=c.id;
+  document.getElementById('cup-codigo').value=c.codigo||'';
+  document.getElementById('cup-valor').value=c.valor||1;
+  document.getElementById('cup-validade').value=c.validade||'';
+  document.getElementById('cup-limite').value=(c.limite_usos!=null?c.limite_usos:'');
+  document.getElementById('cup-desc').value=c.descricao||'';
+  const f=document.getElementById('cup-form'); f.style.display='block'; f.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function cupCancelar(){ document.getElementById('cup-form').style.display='none'; }
+async function cupSalvar(){
+  const g=k=>{ const el=document.getElementById('cup-'+k); return el?el.value.trim():''; };
+  const erro=document.getElementById('cup-form-erro');
+  const codigo=g('codigo'); const valor=parseInt(g('valor'),10);
+  if(!codigo){ if(erro){erro.style.display='block';erro.textContent='Informe o código do cupom.';} return; }
+  if(!(valor>=1 && valor<=12)){ if(erro){erro.style.display='block';erro.textContent='Meses grátis deve ser entre 1 e 12.';} return; }
+  const id=g('id')||null;
+  let ativo=true; // editar preserva o status atual; ativar/desativar é pelo botão da lista.
+  if(id){ const cur=cupDados.find(x=>x.id===id); if(cur) ativo=!!cur.ativo; }
+  const payload={ id:id, codigo:codigo, valor:valor, validade:g('validade')||null, limite_usos:g('limite')||null, descricao:g('desc')||null, ativo:ativo };
+  if(erro) erro.style.display='none';
+  const { error } = await supabase.rpc('admin_cupom_salvar', { p: payload });
+  if(error){ if(erro){erro.style.display='block';erro.textContent='Erro ao salvar: '+error.message;} return; }
+  document.getElementById('cup-form').style.display='none';
+  cupCarregar();
+}
+async function cupToggle(id, ativar){
+  const { error } = await supabase.rpc('admin_cupom_toggle', { p_id:id, p_ativo:ativar });
+  if(error){ alert('Erro: '+error.message); return; }
+  cupCarregar();
+}
+
 // ── ADMIN · gerar/revogar acesso de login do parceiro ──
 let parcAcAtual = null;
 async function parcGerarAcesso(id){
@@ -4655,10 +4814,11 @@ async function pedirAssinatura(plano){
   const { data:{ session } } = await supabase.auth.getSession();
   if(!session){ if(erro){ erro.textContent='Sua sessão expirou. Entre novamente.'; erro.style.display='block'; } return; }
   if(btn){ btn.disabled=true; btn.textContent='Gerando assinatura…'; }
+  const cupom = (document.getElementById('cupom-planos')||{}).value || '';
   try {
     const resp = await fetch('/api/criar-assinatura', {
       method:'POST', headers:{ 'Content-Type':'application/json' },
-      body: JSON.stringify({ access_token: session.access_token, plano })
+      body: JSON.stringify({ access_token: session.access_token, plano, cupom: cupom.trim() })
     });
     const out = await resp.json().catch(()=>({}));
     if(resp.status === 503 || out.error === 'config'){
