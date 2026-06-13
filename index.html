@@ -1072,17 +1072,21 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
         </div>
       </div>
 
-      <!-- Resgate de acesso de PARCEIRO (some quando já é parceiro) -->
-      <div class="card" id="parceiro-resgatar-box" style="display:none;margin-top:28px">
-        <div class="card-title">🤝 É parceiro da Patinha Viva?</div>
-        <p style="font-size:.82rem;color:var(--ink-soft);margin:0 0 12px">Recebeu um código de acesso de parceiro? Insira abaixo para liberar o seu painel de indicações e comissões.</p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <input id="parceiro-codigo-input" type="text" placeholder="PVA-XXXXXXXX" autocomplete="off"
-            style="flex:1;min-width:200px;padding:10px 12px;border:1px solid rgba(45,38,64,.15);border-radius:10px;font-size:.9rem;font-family:'DM Mono',monospace"
-            onkeydown="if(event.key==='Enter'){event.preventDefault();resgatarCodigoParceiro();}">
-          <button class="btn btn-secondary btn-sm" onclick="resgatarCodigoParceiro()">Liberar painel</button>
+      <!-- Resgate de acesso de PARCEIRO (discreto; é só p/ clínicas/pet shops parceiros,
+           NÃO é o cupom do cliente. Some quando a conta já é parceiro). -->
+      <div id="parceiro-resgatar-box" style="display:none;margin-top:24px;text-align:center">
+        <a href="#" onclick="toggleParceiroResgate();return false;"
+           style="font-size:.82rem;color:var(--ink-soft);text-decoration:none;border-bottom:1px dashed rgba(45,38,64,.25);padding-bottom:1px">🤝 É uma clínica parceira? Acessar meu painel</a>
+        <div id="parceiro-resgatar-form" style="display:none;max-width:440px;margin:14px auto 0;text-align:left;background:rgba(45,38,64,.03);border:1px solid rgba(45,38,64,.1);border-radius:12px;padding:14px">
+          <p style="font-size:.8rem;color:var(--ink-soft);margin:0 0 10px">Insira o <b>código de acesso de parceiro</b> (PVA-XXXX) que você recebeu, para liberar o seu painel de indicações e comissões.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <input id="parceiro-codigo-input" type="text" placeholder="PVA-XXXXXXXX" autocomplete="off"
+              style="flex:1;min-width:200px;padding:10px 12px;border:1px solid rgba(45,38,64,.15);border-radius:10px;font-size:.9rem;font-family:'DM Mono',monospace"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();resgatarCodigoParceiro();}">
+            <button class="btn btn-secondary btn-sm" onclick="resgatarCodigoParceiro()">Liberar painel</button>
+          </div>
+          <div id="parceiro-resgatar-msg" style="display:none;font-size:.82rem;margin-top:10px"></div>
         </div>
-        <div id="parceiro-resgatar-msg" style="display:none;font-size:.82rem;margin-top:10px"></div>
       </div>
     </div>
 
@@ -4567,6 +4571,15 @@ async function aplicarPainelParceiro(){
   if(nav) nav.style.display = ehParceiro ? 'flex' : 'none';
   const box = document.getElementById('parceiro-resgatar-box');
   if(box) box.style.display = ehParceiro ? 'none' : 'block';
+}
+
+// Abre/fecha o campo discreto de resgate de acesso de parceiro (caixa em "Meu Plano").
+function toggleParceiroResgate(){
+  const f = document.getElementById('parceiro-resgatar-form');
+  if(!f) return;
+  const mostrar = f.style.display === 'none';
+  f.style.display = mostrar ? 'block' : 'none';
+  if(mostrar){ const i = document.getElementById('parceiro-codigo-input'); if(i) i.focus(); }
 }
 
 // Resgate manual do código de acesso (caixa em "Meu Plano").
