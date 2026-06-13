@@ -1826,6 +1826,16 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
       <button class="modal-close" onclick="closeModal('modal-planos')">✕</button>
     </div>
     <div style="font-size:.82rem;color:var(--ink-soft);margin-bottom:16px">Cobrança mensal · cancele quando quiser. Itens marcados <b>em breve</b> entram em atualizações futuras. O plano é ativado após a confirmação do pagamento.</div>
+
+    <!-- CAMPO DE CUPOM (acima dos planos p/ não ser pulado ao clicar em Assinar) -->
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:linear-gradient(135deg,rgba(240,40,74,.06),rgba(124,47,214,.06));border:1px solid rgba(124,47,214,.18);border-radius:12px;padding:12px 14px;margin-bottom:18px">
+      <span style="font-size:.92rem;font-weight:600;color:var(--ink);white-space:nowrap">🎟️ Tem um cupom?</span>
+      <input id="cupom-planos" type="text" placeholder="Digite o código" autocomplete="off"
+             oninput="this.value=this.value.toUpperCase()"
+             style="flex:1;min-width:150px;padding:9px 12px;border:1.5px solid rgba(124,47,214,.25);border-radius:10px;font-size:.9rem;text-transform:uppercase;background:#fff"/>
+      <span style="font-size:.74rem;color:var(--ink-soft);width:100%">Digite o cupom aqui e <b>depois</b> clique em “Assinar” no plano escolhido.</span>
+    </div>
+
     <div style="display:flex;gap:14px;flex-wrap:wrap">
 
       <div style="flex:1;min-width:210px;border:1.5px solid rgba(124,47,214,.18);border-radius:16px;padding:18px">
@@ -1883,12 +1893,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
         <button class="btn btn-secondary" style="width:100%" onclick="pedirAssinatura('familia')">Assinar Família</button>
       </div>
 
-    </div>
-    <div style="margin-top:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <span style="font-size:.82rem;color:var(--ink-soft)">🎟️ Tem um cupom?</span>
-      <input id="cupom-planos" type="text" placeholder="Código do cupom" autocomplete="off"
-             oninput="this.value=this.value.toUpperCase()"
-             style="flex:1;min-width:160px;padding:8px 12px;border:1.5px solid rgba(124,47,214,.2);border-radius:10px;font-size:.85rem;text-transform:uppercase"/>
     </div>
     <div id="planos-erro" style="display:none;font-size:.82rem;color:var(--rose);margin-top:14px"></div>
   </div>
