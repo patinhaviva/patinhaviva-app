@@ -17,6 +17,17 @@ const PLANOS = {
   familia: { nome: 'Família', centavos: 7990 }  // R$ 79,90/mês
 };
 
+// Mensagens amigáveis para cada motivo de cupom inválido (cliente).
+const CUPOM_MSG = {
+  'nao-encontrado': 'Cupom não encontrado. Confira o código.',
+  'inativo':        'Este cupom não está mais ativo.',
+  'expirado':       'Este cupom expirou.',
+  'esgotado':       'Este cupom atingiu o limite de usos.',
+  'ja-usado':       'Você já usou este cupom.',
+  'sem-codigo':     'Cupom inválido.',
+  'sem-tutor':      'Sessão inválida.'
+};
+
 module.exports = async (req, res) => {
   if (req.method !== 'POST') { res.status(405).json({ error: 'method', message: 'Use POST.' }); return; }
 
@@ -34,12 +45,27 @@ module.exports = async (req, res) => {
     const plano = String(b.plano || '').toLowerCase();
     const email = String(b.email || '').trim().toLowerCase();
     const senha = String(b.password || '');
+    const cupom = String(b.cupom || '').trim();
     if (!PLANOS[plano]) { res.status(400).json({ error: 'plano', message: 'Plano inválido.' }); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { res.status(400).json({ error: 'email', message: 'E-mail inválido.' }); return; }
     if (senha.length < 6) { res.status(400).json({ error: 'senha', message: 'A senha precisa ter pelo menos 6 caracteres.' }); return; }
 
     const info = PLANOS[plano];
     const svc = { apikey: SB_SERVICE, Authorization: `Bearer ${SB_SERVICE}`, 'Content-Type': 'application/json' };
+
+    // 0) CUPOM — pré-checagem READ-ONLY: cupom inválido falha ANTES de criar a
+    // conta (não deixa conta órfã por um código digitado errado).
+    if (cupom) {
+      const v = await fetch(`${SB_URL}/rest/v1/rpc/cupom_validar`, {
+        method: 'POST', headers: svc, body: JSON.stringify({ p_codigo: cupom })
+      });
+      const vr = await v.json().catch(() => ({}));
+      if (!v.ok || !vr || vr.ok !== true) {
+        const motivo = (vr && vr.motivo) || 'sem-codigo';
+        res.status(400).json({ error: 'cupom', motivo, message: CUPOM_MSG[motivo] || 'Cupom inválido.' });
+        return;
+      }
+    }
 
     // 1) Cria o usuário JÁ CONFIRMADO (API admin / service_role).
     const userResp = await fetch(`${SB_URL}/auth/v1/admin/users`, {
@@ -72,6 +98,24 @@ module.exports = async (req, res) => {
     }
     const nova = (await insResp.json())[0];
 
+    // 2.1) CUPOM PROMOCIONAL (opcional): valida e RESERVA server-side (atômico).
+    // Devolve os MESES grátis a aplicar no free_trial. Em falha do MP, estorna.
+    let freeMonths = 0, cupomUsoId = null;
+    if (cupom) {
+      const rpc = await fetch(`${SB_URL}/rest/v1/rpc/cupom_resgatar`, {
+        method: 'POST', headers: svc,
+        body: JSON.stringify({ p_codigo: cupom, p_tutor: userId, p_assinatura: nova.id })
+      });
+      const cr = await rpc.json().catch(() => ({}));
+      if (!rpc.ok || !cr || cr.ok !== true) {
+        const motivo = (cr && cr.motivo) || 'sem-codigo';
+        res.status(400).json({ error: 'cupom', motivo, message: CUPOM_MSG[motivo] || 'Cupom inválido.' });
+        return;
+      }
+      freeMonths = parseInt(cr.meses, 10) || 0;
+      cupomUsoId = cr.uso_id || null;
+    }
+
     // 3) Cria a preapproval (assinatura mensal) no Mercado Pago.
     //    start_date é OBRIGATÓRIO na prática (sem ele o MP responde 500).
     const base = process.env.APP_BASE_URL || `https://${req.headers.host}`;
@@ -90,6 +134,10 @@ module.exports = async (req, res) => {
       notification_url: `${base}/api/webhook-mp`,
       status: 'pending'
     };
+    // Mês(es) grátis do cupom: free_trial nativo do MP adia a 1ª cobrança.
+    if (freeMonths > 0) {
+      preBody.auto_recurring.free_trial = { frequency: freeMonths, frequency_type: 'months' };
+    }
     const mpResp = await fetch('https://api.mercadopago.com/preapproval', {
       method: 'POST',
       headers: { Authorization: `Bearer ${MP_TOKEN}`, 'Content-Type': 'application/json' },
@@ -97,6 +145,11 @@ module.exports = async (req, res) => {
     });
     const pre = await mpResp.json();
     if (!mpResp.ok || !(pre.init_point || pre.sandbox_init_point)) {
+      if (cupomUsoId) {
+        fetch(`${SB_URL}/rest/v1/rpc/cupom_estornar`, {
+          method: 'POST', headers: svc, body: JSON.stringify({ p_uso: cupomUsoId })
+        }).catch(() => {});
+      }
       res.status(502).json({ error: 'mp', message: 'Falha ao criar a assinatura.', detail: pre });
       return;
     }
