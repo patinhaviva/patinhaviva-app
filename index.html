@@ -1902,6 +1902,21 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
   </div>
 </div>
 
+<!-- AVISO DE LIMITE DO PLANO (gating de pets/fotos) -->
+<div class="modal-overlay" id="modal-limite">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <div class="modal-title">⭐ Hora de fazer upgrade</div>
+      <button class="modal-close" onclick="closeModal('modal-limite')">✕</button>
+    </div>
+    <p id="limite-msg" style="font-size:.92rem;color:var(--ink-mid);line-height:1.7;margin:6px 0 18px"></p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-primary" style="flex:1;min-width:140px" onclick="closeModal('modal-limite'); navigate('plano'); openModal('modal-planos')">Ver planos</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-limite')">Agora não</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── AUTENTICAÇÃO ──────────────────────────────────────────
 function switchAuthTab(tab) {
@@ -2238,6 +2253,36 @@ const PLANOS = {
   familia: { nome: 'Plano Família', preco: 'R$ 79,90/mês' }
 };
 
+// ── LIMITES POR PLANO (gating de pets/fotos) ──────────────
+// A trava de verdade é no banco (gatilhos); aqui é só o aviso amigável.
+// pv_meus_limites() devolve os limites e o uso atual da FAMÍLIA.
+let meusLimites = null;
+async function carregarMeusLimites(){
+  try { const { data } = await supabase.rpc('pv_meus_limites'); meusLimites = data || null; }
+  catch(e){ meusLimites = null; }
+}
+function limitePetsAtingido(){
+  return !!(meusLimites && meusLimites.pets_usados >= meusLimites.limite_pets);
+}
+function limiteFotosAtingido(){
+  return !!(meusLimites && meusLimites.fotos_usadas >= meusLimites.limite_fotos);
+}
+function mostrarLimite(tipo){
+  const el = document.getElementById('limite-msg');
+  if(el){
+    if(tipo === 'pets'){
+      const lim = meusLimites ? meusLimites.limite_pets : 1;
+      el.innerHTML = 'Seu plano atual permite até <b>' + lim + ' ' + (lim > 1 ? 'pets' : 'pet') + '</b>. '
+        + 'Para cadastrar mais, faça um upgrade — os planos pagos liberam mais pets, álbum compartilhado entre tutores, Testamento Pet, Livro de Memórias e muito mais.';
+    } else {
+      const lim = meusLimites ? meusLimites.limite_fotos : 5;
+      el.innerHTML = 'Seu plano grátis guarda até <b>' + lim + ' fotos</b> no total (foto de perfil do pet + fotos e vídeos das memórias). '
+        + 'Assine um plano pago e tenha <b>fotos e vídeos ilimitados</b> para registrar todos os momentos.';
+    }
+  }
+  openModal('modal-limite');
+}
+
 const EMOJIS = { cao:'🐕', gato:'🐈', coelho:'🐇', outro:'🐾' };
 function petEmoji(p){ return EMOJIS[p?.especie] || '🐾'; }
 function petLabel(p){ return petEmoji(p) + ' ' + (p?.nome || 'Pet'); }
@@ -2257,6 +2302,7 @@ async function initApp(user) {
     .from('pets').select('*').eq('ativo', true);
   userPets = pets || [];
   currentPetId = userPets[0]?.id || null;
+  await carregarMeusLimites();
 
   // Identidade na UI
   const primeiroNome = (profile?.nome || user.email).split(' ')[0];
@@ -2973,6 +3019,7 @@ async function excluirMemoria(){
   if(error){ alert('Erro ao excluir: ' + error.message); return; }
   editingMemoriaId = null;
   closeModal('modal-memoria');
+  carregarMeusLimites();
   const pet = userPets.find(p => p.id === currentPetId);
   if(pet) loadMemorial(pet);
   renderDashboard();
@@ -3045,6 +3092,7 @@ function preencherFormPet(pet){
 }
 
 function abrirNovoPet(){
+  if(limitePetsAtingido()){ mostrarLimite('pets'); return; }
   editingPetId = null;
   preencherFormPet(null);
   document.getElementById('modal-pet-title').textContent = '🐾 Cadastrar novo pet';
@@ -3089,6 +3137,13 @@ async function salvarPet() {
 
   if(!nome) { alert('Digite o nome do pet'); return; }
 
+  // Gating de fotos: bloqueia foto de perfil NOVA acima do limite (evita upload órfão).
+  const _inFotoPet = document.getElementById('pet-foto-input');
+  const _fotoPetNova = !!(_inFotoPet && _inFotoPet.files && _inFotoPet.files.length);
+  if(_fotoPetNova && (!editando || !(petAtual && petAtual.foto_url)) && limiteFotosAtingido()){
+    mostrarLimite('fotos'); return;
+  }
+
   const btn = document.querySelector('#modal-pet .btn-primary');
   btn.textContent = 'Salvando...'; btn.disabled = true;
 
@@ -3126,6 +3181,7 @@ async function salvarPet() {
     currentPetId = currentPetId || data.id;
   }
 
+  await carregarMeusLimites();
   populatePetSelectors();
   renderPets();
   renderDashboard();
@@ -3155,6 +3211,7 @@ async function excluirPet(){
   userPets = userPets.filter(p => p.id !== idExcluido);
   if(currentPetId === idExcluido) currentPetId = userPets[0]?.id || null;
   editingPetId = null;
+  carregarMeusLimites();
 
   const memAtivo = document.getElementById('page-memorial').classList.contains('active');
   const saudeAtivo = document.getElementById('page-saude').classList.contains('active');
@@ -3189,6 +3246,13 @@ async function salvarMemoria() {
   const memAtual = editando ? currentMemorias.find(m => m.id === editingMemoriaId) : null;
   const labelPadrao = editando ? 'Salvar alterações' : 'Salvar memória ♡';
 
+  // Gating de fotos: bloqueia mídia NOVA acima do limite (evita upload órfão).
+  const _inMidia = document.getElementById('memoria-foto-input');
+  const _midiaNova = !!(_inMidia && _inMidia.files && _inMidia.files.length);
+  if(_midiaNova && (!editando || !(memAtual && memAtual.foto_url)) && limiteFotosAtingido()){
+    mostrarLimite('fotos'); return;
+  }
+
   const btn = document.querySelector('#modal-memoria .btn-primary');
   btn.textContent = 'Salvando...'; btn.disabled = true;
 
@@ -3219,6 +3283,7 @@ async function salvarMemoria() {
 
   editingMemoriaId = null;
   closeModal('modal-memoria');
+  carregarMeusLimites();
   const pet = userPets.find(p => p.id === petId);
   if(pet) loadMemorial(pet);
   renderDashboard();
