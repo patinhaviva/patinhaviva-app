@@ -578,6 +578,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
   <!-- ── CONTEÚDO PRINCIPAL ──────────────────────────────── -->
   <main class="main-content">
 
+    <!-- Banner de acesso suspenso por inadimplência (Opção 2) -->
+    <div id="banner-suspenso" style="display:none;align-items:center;gap:14px;background:#B42318;color:#fff;padding:12px 16px;border-radius:12px;margin-bottom:20px;font-size:.85rem;box-shadow:0 4px 14px rgba(180,35,24,.25)"></div>
+
     <!-- DASHBOARD -->
     <div class="page active" id="page-dashboard">
       <div class="page-header">
@@ -2321,8 +2324,57 @@ const PLANOS = {
 // pv_meus_limites() devolve os limites e o uso atual da FAMÍLIA.
 let meusLimites = null;
 async function carregarMeusLimites(){
-  try { const { data } = await supabase.rpc('pv_meus_limites'); meusLimites = data || null; }
+  // pv_meu_acesso() é superset de pv_meus_limites(): mesmos campos de limite/uso
+  // + suspenso/sou_dono/plano_contratado (bloqueio por inadimplência, Opção 2).
+  try { const { data } = await supabase.rpc('pv_meu_acesso'); meusLimites = data || null; }
   catch(e){ meusLimites = null; }
+  atualizarBannerSuspenso();
+}
+// Acesso SUSPENSO = dono da família inadimplente num plano pago (camada só-leitura).
+function acessoSuspenso(){ return !!(meusLimites && meusLimites.suspenso); }
+function atualizarBannerSuspenso(){
+  const el = document.getElementById('banner-suspenso');
+  if(!el) return;
+  if(!acessoSuspenso()){ el.style.display = 'none'; el.innerHTML = ''; return; }
+  const planoNome = (PLANOS[meusLimites.plano_contratado] || {}).nome || 'plano pago';
+  if(meusLimites.sou_dono){
+    el.innerHTML = `<span style="flex:1;line-height:1.45">⚠️ <b>Pagamento pendente</b> no seu ${planoNome}. Seus pets e fotos extras ficam <b>bloqueados</b> até regularizar — <b>nada foi apagado</b>.</span>
+      <button class="btn btn-sm" style="background:#fff;color:#B42318;font-weight:700;white-space:nowrap;flex:none" onclick="navigate('plano'); openModal('modal-planos')">Regularizar</button>`;
+  } else {
+    el.innerHTML = `<span style="flex:1;line-height:1.45">⚠️ O <b>${planoNome} da família</b> está com pagamento pendente. Peça ao responsável para regularizar e reativar o acesso. <b>Nada foi apagado.</b></span>`;
+  }
+  el.style.display = 'flex';
+}
+// Na suspensão, só os N pets mais ANTIGOS ficam liberados (null = todos liberados).
+function petsLiberadosSet(){
+  if(!acessoSuspenso() || !meusLimites) return null;
+  const lim = meusLimites.limite_pets || 1;
+  const ord = [...(userPets||[])].sort((a,b)=> String(a.criado_em||'').localeCompare(String(b.criado_em||'')));
+  return new Set(ord.slice(0, lim).map(p => p.id));
+}
+function petsVisiveis(){
+  const libs = petsLiberadosSet();
+  return libs ? (userPets||[]).filter(p => libs.has(p.id)) : (userPets||[]);
+}
+// Mídia de memórias (de um pet) liberada na suspensão = as N mais antigas por data
+// (null = todas liberadas). Texto/título da memória nunca somem — só a foto/vídeo.
+function memoriasMidiaLiberada(mems){
+  if(!acessoSuspenso() || !meusLimites) return null;
+  const lim = meusLimites.limite_fotos || 5;
+  const comMidia = (mems||[]).filter(m => m.foto_url);
+  const ord = [...comMidia].sort((a,b)=> String(a.data_memoria||'').localeCompare(String(b.data_memoria||'')));
+  return new Set(ord.slice(0, lim).map(m => m.id));
+}
+// Placeholder de mídia bloqueada (reaproveita o tamanho de .timeline-photo).
+function midiaCadeadoHTML(){
+  return `<div class="timeline-photo" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:rgba(124,47,214,.06);border:1px dashed rgba(124,47,214,.28);color:var(--ink-soft);min-height:120px;text-align:center;padding:14px;box-sizing:border-box">
+    <div style="font-size:1.6rem">🔒</div>
+    <div style="font-weight:700;color:var(--ink);font-size:.8rem">Foto bloqueada</div>
+    <button class="btn btn-primary btn-sm" onclick="navigate('plano'); openModal('modal-planos')">Regularizar</button>
+  </div>`;
+}
+function tileCadeadoHTML(){
+  return `<div style="aspect-ratio:1;border-radius:12px;background:rgba(124,47,214,.06);border:1px dashed rgba(124,47,214,.28);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--ink-soft);font-size:.62rem;text-align:center;cursor:pointer" onclick="navigate('plano'); openModal('modal-planos')"><div style="font-size:1.3rem">🔒</div>Regularize</div>`;
 }
 function limitePetsAtingido(){
   return !!(meusLimites && meusLimites.pets_usados >= meusLimites.limite_pets);
@@ -2685,7 +2737,8 @@ async function renderDashboard(){
     if(!userPets.length){
       petsList.innerHTML = `<div style="font-size:.85rem;color:var(--ink-soft);padding:8px 0">Nenhum pet cadastrado. <a href="#" onclick="navigate('pets');return false" style="color:var(--violet);font-weight:600">Cadastrar agora →</a></div>`;
     } else {
-      petsList.innerHTML = userPets.map(p => `
+      // Na suspensão, lista só os pets liberados (os bloqueados aparecem com cadeado na aba Pets).
+      petsList.innerHTML = petsVisiveis().map(p => `
         <div style="display:flex;align-items:center;gap:14px;padding:12px;background:var(--bg);border-radius:12px;cursor:pointer" onclick="abrirMemorialDoPet('${p.id}')">
           <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#F3EEF9,#EAF5F8);display:flex;align-items:center;justify-content:center;font-size:1.6rem">${petEmoji(p)}</div>
           <div style="flex:1">
@@ -2703,11 +2756,13 @@ async function renderDashboard(){
     if(!recentes.length){
       memGrid.innerHTML = `<div style="grid-column:1/-1;font-size:.85rem;color:var(--ink-soft);padding:4px 0">Nenhuma memória registrada ainda.</div>` + addTile;
     } else {
-      memGrid.innerHTML = recentes.map(m => m.foto_url
-        ? (ehUrlVideo(m.foto_url)
-            ? `<div style="aspect-ratio:1;border-radius:12px;overflow:hidden;position:relative;background:#000"><video src="${m.foto_url}" style="width:100%;height:100%;object-fit:cover" muted playsinline></video><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.6rem;pointer-events:none">▶️</div></div>`
-            : `<div style="aspect-ratio:1;border-radius:12px;overflow:hidden"><img src="${m.foto_url}" style="width:100%;height:100%;object-fit:cover"/></div>`)
-        : `<div style="aspect-ratio:1;border-radius:12px;background:linear-gradient(135deg,#F3EEF9,#EAF5F8);display:flex;align-items:center;justify-content:center;font-size:1.6rem">📸</div>`
+      memGrid.innerHTML = recentes.map(m => (m.foto_url && acessoSuspenso())
+        ? tileCadeadoHTML()
+        : (m.foto_url
+          ? (ehUrlVideo(m.foto_url)
+              ? `<div style="aspect-ratio:1;border-radius:12px;overflow:hidden;position:relative;background:#000"><video src="${m.foto_url}" style="width:100%;height:100%;object-fit:cover" muted playsinline></video><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.6rem;pointer-events:none">▶️</div></div>`
+              : `<div style="aspect-ratio:1;border-radius:12px;overflow:hidden"><img src="${m.foto_url}" style="width:100%;height:100%;object-fit:cover"/></div>`)
+          : `<div style="aspect-ratio:1;border-radius:12px;background:linear-gradient(135deg,#F3EEF9,#EAF5F8);display:flex;align-items:center;justify-content:center;font-size:1.6rem">📸</div>`)
       ).join('') + addTile;
     }
   }
@@ -2754,7 +2809,7 @@ async function renderDashAlertas(){
 }
 
 function populatePetSelectors(){
-  const opts = userPets.map(p => `<option value="${p.id}">${petLabel(p)}</option>`).join('');
+  const opts = petsVisiveis().map(p => `<option value="${p.id}">${petLabel(p)}</option>`).join('');
   ['memorial-pet-select','saude-pet-select','memoria-pet-select','saude-modal-pet-select'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.innerHTML = opts || '<option value="">Nenhum pet cadastrado</option>';
@@ -2771,8 +2826,30 @@ function renderPets() {
 
   const emojis = { cao:'🐕', gato:'🐈', coelho:'🐇', outro:'🐾' };
 
+  // Bloqueio por inadimplência (Opção 2): só os N pets mais ANTIGOS ficam
+  // liberados; o restante mostra um cadeado "Regularize para reativar"
+  // (nada é apagado). Fora da suspensão, todos ficam liberados.
+  const susp = acessoSuspenso();
+  const liberados = petsLiberadosSet(); // null quando não suspenso
+
   userPets.forEach(pet => {
     const card = document.createElement('div');
+    if(susp && liberados && !liberados.has(pet.id)){
+      card.className = 'pet-card reveal pet-card-locked';
+      card.style.position = 'relative';
+      card.innerHTML = `
+        <div class="pet-card-cover" style="background:linear-gradient(135deg,#F3EEF9,#EAF5F8);filter:blur(3px)">
+          ${pet.foto_url ? `<img src="${pet.foto_url}" style="width:100%;height:100%;object-fit:cover"/>` : `<span style="font-size:5rem">${emojis[pet.especie]||'🐾'}</span>`}
+        </div>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:rgba(255,255,255,.72);text-align:center;padding:16px;border-radius:inherit">
+          <div style="font-size:2rem">🔒</div>
+          <div style="font-weight:700;color:var(--ink);font-size:.9rem">Regularize para reativar</div>
+          <div style="font-size:.72rem;color:var(--ink-soft)">${pet.nome} continua guardado em segurança.</div>
+          <button class="btn btn-primary btn-sm" onclick="navigate('plano'); openModal('modal-planos')">Regularizar</button>
+        </div>`;
+      grid.appendChild(card);
+      return;
+    }
     card.className = 'pet-card reveal';
     card.onclick = () => { currentPetId = pet.id; navigate('memorial'); loadMemorial(pet); };
     card.innerHTML = `
@@ -2790,13 +2867,16 @@ function renderPets() {
     grid.appendChild(card);
   });
 
-  if(addCard) grid.appendChild(addCard);
-  else {
-    const add = document.createElement('div');
-    add.className = 'pet-card pet-card-add';
-    add.onclick = () => abrirNovoPet();
-    add.innerHTML = '<div class="add-icon">+</div><div class="add-label">Adicionar pet</div>';
-    grid.appendChild(add);
+  // Durante o bloqueio, esconde o "+ adicionar pet" (já está acima do grátis).
+  if(!susp){
+    if(addCard) grid.appendChild(addCard);
+    else {
+      const add = document.createElement('div');
+      add.className = 'pet-card pet-card-add';
+      add.onclick = () => abrirNovoPet();
+      add.innerHTML = '<div class="add-icon">+</div><div class="add-label">Adicionar pet</div>';
+      grid.appendChild(add);
+    }
   }
 }
 
@@ -2885,7 +2965,15 @@ async function loadMemorial(pet) {
   }
 
   const cores = ['rose','teal','','amber'];
-  timeline.innerHTML = memorias.map((m, i) => `
+  const midiaLib = memoriasMidiaLiberada(memorias); // null = todas liberadas
+  timeline.innerHTML = memorias.map((m, i) => {
+    let midiaHtml = '';
+    if(m.foto_url){
+      midiaHtml = (midiaLib && !midiaLib.has(m.id))
+        ? midiaCadeadoHTML()
+        : (ehUrlVideo(m.foto_url) ? `<video src="${m.foto_url}" class="timeline-photo" controls playsinline></video>` : `<img src="${m.foto_url}" class="timeline-photo"/>`);
+    }
+    return `
     <div class="timeline-item">
       <div class="timeline-dot ${cores[i%4]}"></div>
       <div class="timeline-date">${new Date(m.data_memoria).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</div>
@@ -2895,9 +2983,10 @@ async function loadMemorial(pet) {
           <button title="Editar memória" onclick="abrirEditarMemoria('${m.id}')" style="flex:none;background:none;border:none;cursor:pointer;font-size:.95rem;opacity:.55;padding:0 2px">✏️</button>
         </div>
         <div class="timeline-card-text">${m.descricao||''}</div>
-        ${m.foto_url ? (ehUrlVideo(m.foto_url) ? `<video src="${m.foto_url}" class="timeline-photo" controls playsinline></video>` : `<img src="${m.foto_url}" class="timeline-photo"/>`) : ''}
+        ${midiaHtml}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 // ── SAÚDE ─────────────────────────────────────────────────
@@ -3939,7 +4028,9 @@ function navigate(page) {
 
   // Carregamento sob demanda das telas do núcleo
   if(page === 'memorial'){
-    const pet = userPets.find(p => p.id === currentPetId) || userPets[0];
+    const vis = petsVisiveis();
+    const pet = vis.find(p => p.id === currentPetId) || vis[0] || null;
+    if(pet) currentPetId = pet.id;
     const sel = document.getElementById('memorial-pet-select');
     if(sel && pet) sel.value = pet.id;
     loadMemorial(pet || null);
@@ -5345,7 +5436,7 @@ async function renderSucessao(){
   gate.style.display='none'; wiz.style.display='none'; indisp.style.display='none';
 
   const plano=(currentProfile?.plano||'livre').toLowerCase();
-  if(!SUC_LIMITE_PETS[plano]){ gate.style.display='block'; return; }
+  if(!SUC_LIMITE_PETS[plano] || acessoSuspenso()){ gate.style.display='block'; return; }
 
   // Reentrada: o wizard já foi montado nesta sessão → preserva o que foi digitado.
   if(sucState.built){
@@ -5860,6 +5951,8 @@ async function renderLivro(){
     if(!familiaInfo){ try{ await carregarFamiliaInfo(); }catch(e){} }
     if(familiaInfo && familiaInfo.papel==='membro') liberado=true;
   }
+  // Inadimplência (Opção 2): trava o recurso pago enquanto suspenso (volta ao grátis).
+  if(acessoSuspenso()) liberado=false;
   if(!liberado){ if(gate) gate.style.display='block'; return; }
 
   if(main) main.style.display='block';
@@ -6139,7 +6232,7 @@ async function renderAlbum(){
   if(main) main.style.display='none';
   try{
     const _ac=await acessoFamiliaPaga();
-    if(!_ac){ if(gate) gate.style.display='block'; return; }
+    if(!_ac || acessoSuspenso()){ if(gate) gate.style.display='block'; return; }
     if(main) main.style.display='block';
 
     if(grid) grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:24px;color:var(--ink-soft);font-size:.85rem">Carregando fotos…</div>';
