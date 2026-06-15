@@ -1270,7 +1270,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
         <div class="card" id="adm-parc-card" style="margin-top:28px">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
             <div class="card-title" style="margin:0">🤝 Parceiros</div>
-            <button class="btn btn-primary btn-sm" onclick="parcNovo()">+ Novo parceiro</button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-ghost btn-sm" onclick="trocaAbrir()">🔄 Trocar cliente</button>
+              <button class="btn btn-primary btn-sm" onclick="parcNovo()">+ Novo parceiro</button>
+            </div>
           </div>
           <p style="font-size:.82rem;color:var(--ink-soft);margin:8px 0 14px">Clínicas, pet shops, ONGs e outros indicadores. Cada parceiro tem link e QR Code exclusivos; a comissão recorrente é calculada automaticamente quando o cliente indicado paga (Bronze 10% · Prata 15% · Ouro 20%).</p>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
@@ -1477,6 +1480,48 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
       </div>
       <a id="parc-ac-wa" class="btn" style="width:100%;background:#25D366;color:#fff;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px" target="_blank" rel="noopener">📲 Enviar acesso no WhatsApp</a>
       <button class="btn btn-ghost btn-sm" style="width:100%;color:var(--rose)" onclick="parcRevogarAcesso()">Revogar acesso atual</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Trocar parceiro de um cliente -->
+<div class="modal-overlay" id="modal-troca">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🔄 Trocar parceiro de um cliente</div>
+      <button class="modal-close" onclick="closeModal('modal-troca')">✕</button>
+    </div>
+    <div class="modal-form">
+      <p style="font-size:.82rem;color:var(--ink-soft);margin:0 0 14px">Atribua um parceiro a um cliente (ex.: indicação presencial, esqueceu de usar o link) ou corrija uma atribuição. <b>Vale só daqui pra frente</b>: as comissões já geradas do parceiro anterior não são alteradas. Tudo fica registrado no histórico.</p>
+      <div class="form-group">
+        <label class="form-label">E-mail do cliente</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input class="form-input" id="troca-email" type="email" placeholder="cliente@email.com" style="flex:1;min-width:180px" onkeydown="if(event.key==='Enter'){event.preventDefault();trocaBuscar();}"/>
+          <button class="btn btn-secondary btn-sm" onclick="trocaBuscar()">Buscar</button>
+        </div>
+      </div>
+      <div id="troca-busca-erro" style="display:none;font-size:.82rem;color:var(--rose);margin-bottom:10px"></div>
+      <div id="troca-resultado" style="display:none">
+        <div style="background:rgba(124,47,214,.06);border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:.86rem">
+          <div>Cliente: <b id="troca-cli-nome"></b></div>
+          <div style="color:var(--ink-soft);font-size:.8rem" id="troca-cli-email"></div>
+          <div style="margin-top:6px">Parceiro atual: <b id="troca-cli-parceiro"></b></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Novo parceiro</label>
+          <select class="select-input" id="troca-novo"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Motivo (opcional)</label>
+          <input class="form-input" id="troca-motivo" placeholder="Ex: indicação presencial / correção de atribuição"/>
+        </div>
+        <div id="troca-erro" style="display:none;font-size:.82rem;color:var(--rose);margin-bottom:10px"></div>
+        <button class="btn btn-primary" style="width:100%" onclick="trocaConfirmar()">Confirmar troca</button>
+      </div>
+      <div style="margin-top:18px;border-top:1px solid rgba(45,38,64,.08);padding-top:14px">
+        <div style="font-size:.78rem;font-weight:600;color:var(--ink-mid);margin-bottom:8px">Últimas trocas</div>
+        <div id="troca-historico" style="font-size:.82rem;color:var(--ink-soft);max-height:220px;overflow:auto">—</div>
+      </div>
     </div>
   </div>
 </div>
@@ -4259,6 +4304,11 @@ const PARC_TIPOS = {
 const PARC_NIVEL = {
   bronze:{ txt:'🥉 Bronze', pct:10 }, prata:{ txt:'🥈 Prata', pct:15 }, ouro:{ txt:'🥇 Ouro', pct:20 }
 };
+const PARC_SELO = {
+  bronze:{ medalha:'🥉', nome:'Bronze', pct:10, c1:'#b87333', c2:'#e6a86b' },
+  prata: { medalha:'🥈', nome:'Prata',  pct:15, c1:'#8c97a3', c2:'#c8cfd6' },
+  ouro:  { medalha:'🥇', nome:'Ouro',   pct:20, c1:'#c9a227', c2:'#f1d77a' }
+};
 const COM_STATUS = {
   pendente:  { txt:'Pendente',  cor:'#7a5a00',         bg:'#ffe7a8' },
   aprovada:  { txt:'Aprovada',  cor:'#fff',            bg:'var(--violet)' },
@@ -4753,6 +4803,84 @@ async function parcRevogarAcesso(){
   parcCarregar();
 }
 
+// ── Troca manual de parceiro de um cliente (Fase 3) ──
+let trocaCliente = null;
+function trocaAbrir(){
+  trocaCliente = null;
+  const email=document.getElementById('troca-email'); if(email) email.value='';
+  document.getElementById('troca-resultado').style.display='none';
+  const be=document.getElementById('troca-busca-erro'); if(be) be.style.display='none';
+  const er=document.getElementById('troca-erro'); if(er) er.style.display='none';
+  // popular o select de novos parceiros com os ativos (parcDados já carregado no Admin)
+  const sel=document.getElementById('troca-novo');
+  if(sel){
+    const ativos=(parcDados||[]).filter(p=>p.status==='ativo');
+    sel.innerHTML='<option value="">Selecione o parceiro…</option>'
+      + ativos.map(p=>'<option value="'+p.id+'">'+esc(p.nome_fantasia)+' · '+esc(p.code)+'</option>').join('');
+  }
+  trocaHistoricoCarregar();
+  openModal('modal-troca');
+}
+async function trocaBuscar(){
+  const email=(document.getElementById('troca-email')?.value||'').trim();
+  const be=document.getElementById('troca-busca-erro');
+  const res=document.getElementById('troca-resultado');
+  if(be) be.style.display='none';
+  if(res) res.style.display='none';
+  trocaCliente=null;
+  if(!email){ if(be){be.style.display='block';be.textContent='Informe o e-mail do cliente.';} return; }
+  const { data, error } = await supabase.rpc('admin_cliente_parceiro_buscar', { p_email: email });
+  if(error){ if(be){be.style.display='block';be.textContent='Erro: '+error.message;} return; }
+  if(!data || data.ok===false){
+    const msg = (data&&data.reason==='cliente-nao-encontrado') ? 'Nenhum cliente com esse e-mail.' : 'Não foi possível buscar o cliente.';
+    if(be){be.style.display='block';be.textContent=msg;} return;
+  }
+  trocaCliente=data;
+  document.getElementById('troca-cli-nome').textContent=data.nome||'—';
+  document.getElementById('troca-cli-email').textContent=data.email||'';
+  const pa=document.getElementById('troca-cli-parceiro');
+  pa.textContent = data.partner_atual_id ? ((data.partner_atual_nome||'')+' · '+(data.partner_atual_code||'')) : 'nenhum (sem vínculo)';
+  // se já tem parceiro, pré-seleciona ele no select pra evitar escolher o mesmo
+  const sel=document.getElementById('troca-novo'); if(sel) sel.value='';
+  res.style.display='block';
+}
+async function trocaConfirmar(){
+  const er=document.getElementById('troca-erro');
+  if(er) er.style.display='none';
+  if(!trocaCliente){ return; }
+  const novo=document.getElementById('troca-novo')?.value||'';
+  const motivo=(document.getElementById('troca-motivo')?.value||'').trim();
+  if(!novo){ if(er){er.style.display='block';er.textContent='Selecione o novo parceiro.';} return; }
+  if(novo===trocaCliente.partner_atual_id){ if(er){er.style.display='block';er.textContent='Esse já é o parceiro atual do cliente.';} return; }
+  const pNome=(parcDados.find(p=>p.id===novo)||{}).nome_fantasia||'o parceiro';
+  if(!confirm('Confirmar: vincular '+(trocaCliente.nome||'o cliente')+' a '+pNome+'?\n\nVale só daqui pra frente; comissões já geradas não mudam.')) return;
+  const { data, error } = await supabase.rpc('admin_trocar_parceiro_cliente', { p_customer: trocaCliente.customer_id, p_new_partner: novo, p_reason: motivo||null });
+  if(error){ if(er){er.style.display='block';er.textContent='Erro: '+error.message;} return; }
+  if(data && data.ok===false){
+    const m = data.reason==='mesmo-parceiro' ? 'Esse já é o parceiro atual.' : (data.reason==='self' ? 'O parceiro não pode ser cliente de si mesmo.' : 'Não foi possível concluir.');
+    if(er){er.style.display='block';er.textContent=m;} return;
+  }
+  closeModal('modal-troca');
+  parcCarregar();
+}
+async function trocaHistoricoCarregar(){
+  const wrap=document.getElementById('troca-historico'); if(!wrap) return;
+  wrap.textContent='Carregando…';
+  const { data, error } = await supabase.rpc('admin_trocas_listar', { p_limit: 100 });
+  if(error){ wrap.textContent='Não foi possível carregar (rodou o SQL da troca?).'; return; }
+  const lista=data||[];
+  if(!lista.length){ wrap.textContent='Nenhuma troca registrada ainda.'; return; }
+  wrap.innerHTML = lista.map(h=>{
+    const quando=(h.changed_at||'').slice(0,10).split('-').reverse().join('/');
+    const de = h.old_code ? (esc(h.old_nome||'')+' ('+esc(h.old_code)+')') : 'sem parceiro';
+    const para = esc(h.new_nome||'')+' ('+esc(h.new_code||'')+')';
+    return '<div style="padding:7px 0;border-bottom:1px solid rgba(45,38,64,.06)">'
+      + '<div style="color:var(--ink-mid)"><b>'+esc(h.cliente_nome||h.cliente_email||'')+'</b>: '+de+' → '+para+'</div>'
+      + '<div style="font-size:.74rem;color:var(--ink-soft)">'+quando+(h.reason?(' · '+esc(h.reason)):'')+(h.por_nome?(' · por '+esc(h.por_nome)):'')+'</div>'
+      + '</div>';
+  }).join('');
+}
+
 // ── PAINEL DO PARCEIRO (login Supabase reusado) ───────────
 let painelParceiro = null;
 
@@ -4820,10 +4948,26 @@ function painelMontar(d){
   painelQRCode = d.code;
   const link = 'https://patinhaviva.com.br/?ref=' + encodeURIComponent(d.code);
   const niv = PARC_NIVEL[d.nivel] || PARC_NIVEL.bronze;
+  const selo = PARC_SELO[d.nivel] || PARC_SELO.bronze;
   const prox = d.proximo_nivel ? (PARC_NIVEL[d.proximo_nivel]||{txt:d.proximo_nivel,pct:''}) : null;
   const proxTxt = prox
     ? ('Faltam <b>'+d.faltam_proximo+'</b> assinante(s) ativo(s) para o nível '+prox.txt+' e passar a receber <b>'+prox.pct+'%</b>.')
     : 'Você está no nível máximo 🎉 — comissão de '+niv.pct+'%.';
+
+  // Kit de divulgação: textos prontos pra copiar (com o link do parceiro embutido).
+  painelKitTextos = [
+    { rotulo:'WhatsApp', texto:'🐾 Cuide da saúde e guarde as memórias do seu pet com o Patinha Viva! Eu sou parceiro oficial e quero te indicar. Faça seu cadastro pelo meu link: '+link },
+    { rotulo:'Instagram / bio', texto:'Sou parceiro oficial Patinha Viva 🐾🐶🐱 Cadastre seu pet pelo meu link e tenha ficha de saúde, lembretes de vacina, álbum de memórias e muito mais 👉 '+link },
+    { rotulo:'Mensagem curta', texto:'Conheça o Patinha Viva pelo meu link de parceiro: '+link }
+  ];
+  const kitItens = painelKitTextos.map((t,i) =>
+    '<div style="border:1px solid rgba(45,38,64,.12);border-radius:12px;padding:12px 14px;margin-bottom:10px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">'
+      + '<div style="font-size:.74rem;font-weight:600;color:var(--ink-mid)">'+esc(t.rotulo)+'</div>'
+      + '<button class="btn btn-secondary btn-sm" onclick="painelCopiarTexto('+i+')">Copiar</button>'
+    + '</div>'
+    + '<div style="font-size:.84rem;color:var(--ink-mid);line-height:1.5;word-break:break-word">'+esc(t.texto)+'</div>'
+    + '</div>').join('');
 
   let hist = '';
   const h = d.historico || [];
@@ -4850,6 +4994,15 @@ function painelMontar(d){
         + '<span style="background:var(--violet);color:#fff;border-radius:100px;padding:3px 12px;font-size:.8rem">'+niv.txt+' · '+niv.pct+'%</span>'
       + '</div>'
       + '<div style="font-size:.8rem;color:var(--ink-soft);font-family:\'DM Mono\',monospace;margin-bottom:12px">'+esc(d.code)+'</div>'
+      // Selo de nível
+      + '<div style="display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,'+selo.c1+','+selo.c2+');border-radius:14px;padding:14px 16px;margin-bottom:14px;color:#fff;box-shadow:0 4px 14px rgba(45,38,64,.12)">'
+        + '<div style="font-size:2.6rem;line-height:1">'+selo.medalha+'</div>'
+        + '<div>'
+          + '<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;opacity:.92">Selo de parceiro</div>'
+          + '<div style="font-family:\'Lora\',serif;font-size:1.35rem;font-weight:600;line-height:1.2">Parceiro '+selo.nome+'</div>'
+          + '<div style="font-size:.82rem;opacity:.95">Comissão de '+selo.pct+'% recorrente</div>'
+        + '</div>'
+      + '</div>'
       + '<div style="background:rgba(124,47,214,.07);border-radius:12px;padding:12px 14px;font-size:.84rem;color:var(--ink-mid);line-height:1.5;margin-bottom:14px">'
         + 'Você está no nível <b>'+capitalizar(d.nivel)+'</b> e recebe <b>'+niv.pct+'%</b> de comissão recorrente. '+proxTxt
       + '</div>'
@@ -4879,6 +5032,17 @@ function painelMontar(d){
       + '<div style="background:#fff7e6;border:1px solid #ffe7a8;border-radius:10px;padding:10px 12px;font-size:.78rem;color:#7a5a00;margin-top:14px">⏳ A comissão só é validada após a confirmação do pagamento do cliente. Cancelamento, inadimplência ou estorno cancelam a comissão do período.</div>'
     + '</div>'
     + '</div>'
+    // Kit de divulgação
+    + '<div class="card" style="margin-top:28px">'
+      + '<div class="card-title">📣 Materiais de divulgação</div>'
+      + '<p style="font-size:.82rem;color:var(--ink-soft);margin:0 0 14px">Use estes textos prontos (com o seu link já embutido) e o seu selo de parceiro para divulgar nas redes, no WhatsApp e nos materiais do seu estabelecimento.</p>'
+      + kitItens
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">'
+        + '<button class="btn btn-primary btn-sm" onclick="painelBaixarSelo()">⬇ Baixar selo (PNG)</button>'
+        + '<button class="btn btn-secondary btn-sm" onclick="painelBaixarQR()">⬇ Baixar QR Code (PNG)</button>'
+        + '<button class="btn btn-ghost btn-sm" onclick="painelCopiarLink()">Copiar meu link</button>'
+      + '</div>'
+    + '</div>'
     // Histórico
     + '<div class="card" style="margin-top:28px"><div class="card-title">📅 Histórico mensal</div><div style="overflow-x:auto">'+hist+'</div></div>';
 
@@ -4899,6 +5063,55 @@ function painelBaixarQR(){
   if(!canvas){ alert('QR Code ainda não gerado.'); return; }
   const a=document.createElement('a'); a.href=canvas.toDataURL('image/png');
   a.download='qrcode-'+(painelQRCode||'parceiro')+'.png';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+// Kit de divulgação: textos prontos + selo baixável
+let painelKitTextos = [];
+function painelCopiarTexto(i){
+  const t = (painelKitTextos[i]||{}).texto || '';
+  if(!t) return;
+  if(navigator.clipboard){ navigator.clipboard.writeText(t).then(()=>painelToast('Texto copiado!')).catch(()=>painelCopiarFallback(t)); }
+  else painelCopiarFallback(t);
+}
+function painelCopiarFallback(t){
+  const ta=document.createElement('textarea'); ta.value=t; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.select(); try{document.execCommand('copy'); painelToast('Texto copiado!');}catch(e){} ta.remove();
+}
+function painelToast(msg){
+  let el=document.getElementById('painel-toast');
+  if(!el){ el=document.createElement('div'); el.id='painel-toast';
+    el.style.cssText='position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:100px;font-size:.85rem;z-index:9999;box-shadow:0 6px 20px rgba(0,0,0,.25);opacity:0;transition:opacity .2s';
+    document.body.appendChild(el); }
+  el.textContent=msg; el.style.opacity='1';
+  clearTimeout(el._t); el._t=setTimeout(()=>{ el.style.opacity='0'; }, 1600);
+}
+// Gera o selo de nível como imagem PNG (canvas) p/ o parceiro baixar e divulgar.
+function painelBaixarSelo(){
+  const d = painelParceiro || {};
+  const selo = PARC_SELO[d.nivel] || PARC_SELO.bronze;
+  const S=720, cv=document.createElement('canvas'); cv.width=S; cv.height=S;
+  const ctx=cv.getContext('2d');
+  // fundo gradiente do nível
+  const g=ctx.createLinearGradient(0,0,S,S); g.addColorStop(0,selo.c1); g.addColorStop(1,selo.c2);
+  ctx.fillStyle=g; ctx.fillRect(0,0,S,S);
+  // disco central
+  ctx.beginPath(); ctx.arc(S/2,300,150,0,Math.PI*2); ctx.closePath();
+  ctx.fillStyle='rgba(255,255,255,.18)'; ctx.fill();
+  ctx.lineWidth=6; ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.stroke();
+  // medalha (emoji)
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.font='150px sans-serif'; ctx.fillText(selo.medalha, S/2, 300);
+  // textos
+  ctx.fillStyle='#ffffff';
+  ctx.font='600 34px Georgia, serif'; ctx.fillText('PARCEIRO OFICIAL', S/2, 500);
+  ctx.font='700 64px Georgia, serif'; ctx.fillText('Patinha Viva '+selo.nome, S/2, 560);
+  ctx.font='400 30px sans-serif'; ctx.fillStyle='rgba(255,255,255,.95)';
+  ctx.fillText((d.nome_fantasia||'')+'  ·  '+(d.code||''), S/2, 620);
+  ctx.font='400 26px sans-serif'; ctx.fillStyle='rgba(255,255,255,.85)';
+  ctx.fillText('patinhaviva.com.br', S/2, 670);
+  const a=document.createElement('a');
+  a.href=cv.toDataURL('image/png');
+  a.download='selo-parceiro-'+(d.code||'patinhaviva')+'.png';
   document.body.appendChild(a); a.click(); a.remove();
 }
 
