@@ -4419,7 +4419,8 @@ function parcRenderTabela(lista){
         + '<button class="btn btn-ghost btn-sm" onclick="parcEditar(\''+p.id+'\')">Editar</button> '
         + '<button class="btn btn-secondary btn-sm" onclick="parcAbrirQR(\''+esc(p.code)+'\',\''+esc((p.nome_fantasia||'').replace(/[\x27"]/g,"")) +'\')">Link/QR</button> '
         + '<button class="btn btn-ghost btn-sm" onclick="parcGerarAcesso(\''+p.id+'\')">'+(p.tem_acesso?'🔑 Acesso':'Gerar acesso')+'</button> '
-        + '<button class="btn btn-ghost btn-sm" onclick="comissoesCarregar(\''+p.id+'\')">Comissões</button>'
+        + '<button class="btn btn-ghost btn-sm" onclick="comissoesCarregar(\''+p.id+'\')">Comissões</button> '
+        + '<button class="btn btn-ghost btn-sm" style="color:var(--rose)" onclick="parcExcluir(\''+p.id+'\')">🗑 Excluir</button>'
       + '</td></tr>';
   });
   h+='</tbody></table>';
@@ -4473,6 +4474,35 @@ async function parcSalvar(){
   const { error } = await supabase.rpc('admin_parceiro_salvar', { p: payload });
   if(error){ if(erro){erro.style.display='block';erro.textContent='Erro ao salvar: '+error.message;} return; }
   closeModal('modal-parceiro');
+  parcCarregar();
+}
+
+// ── Excluir / inativar parceiro ──
+async function parcExcluir(id){
+  const p = parcDados.find(x=>x.id===id); if(!p) return;
+  if(!confirm('Excluir o parceiro "'+(p.nome_fantasia||'')+'" ('+(p.code||'')+')?\n\nSó é possível excluir parceiros SEM histórico de comissões/repasses. Esta ação não pode ser desfeita.')) return;
+  const { data, error } = await supabase.rpc('admin_parceiro_excluir', { p_partner: id });
+  if(error){ alert('Erro ao excluir: '+error.message+'\n\n(Verifique se patinhaviva_parceiros_excluir.sql foi rodado no banco.)'); return; }
+  if(data && data.ok===false){
+    if(data.reason==='tem-historico'){
+      if(confirm('Não dá para excluir: este parceiro já tem '+(data.comissoes||0)+' comissão(ões) e '+(data.repasses||0)+' repasse(s) no histórico — precisamos preservar o financeiro.\n\nDeseja INATIVAR o parceiro? Ele para de receber novas indicações e comissões, mas o histórico fica intacto.')){
+        parcInativar(p);
+      }
+      return;
+    }
+    alert('Não foi possível excluir o parceiro.'); return;
+  }
+  parcCarregar();
+}
+async function parcInativar(p){
+  const payload={
+    id:p.id, nome_fantasia:p.nome_fantasia, razao_social:p.razao_social, documento:p.documento,
+    tipo:p.tipo, responsavel:p.responsavel, email:p.email, telefone:p.telefone, endereco:p.endereco,
+    cidade:p.cidade, estado:p.estado, pix_key:p.pix_key, dados_bancarios:p.dados_bancarios,
+    status:'inativo', cupom:p.cupom, observacoes:p.observacoes
+  };
+  const { error } = await supabase.rpc('admin_parceiro_salvar', { p: payload });
+  if(error){ alert('Erro ao inativar: '+error.message); return; }
   parcCarregar();
 }
 
