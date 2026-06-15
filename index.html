@@ -1287,6 +1287,24 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);over
           <div id="parc-tabela" style="overflow-x:auto"></div>
         </div>
 
+        <!-- FECHAMENTO & REPASSES -->
+        <div class="card" id="adm-rep-card" style="margin-top:28px">
+          <div class="card-title">💸 Fechamento &amp; Repasses</div>
+          <p style="font-size:.82rem;color:var(--ink-soft);margin:0 0 12px">Feche o mês para <b>aprovar de uma vez todas as comissões pendentes</b> daquele mês. Depois pague os parceiros que acumularam pelo menos o mínimo (<b>R$ 50</b>); quem não atingiu continua acumulando para o próximo repasse. <span style="color:var(--ink-mid)">Antes de pagar, você ainda pode cancelar uma comissão específica no card 🧮 Comissões abaixo.</span></p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+            <label style="font-size:.8rem;color:var(--ink-mid)">Mês&nbsp;<input id="rep-mes" type="month" style="padding:8px 10px;border:1px solid rgba(45,38,64,.15);border-radius:10px;font-size:.88rem"></label>
+            <button class="btn btn-primary btn-sm" onclick="repFecharMes()">Fechar mês</button>
+            <span style="width:1px;height:22px;background:rgba(45,38,64,.12)"></span>
+            <label style="font-size:.8rem;color:var(--ink-mid)">Mínimo R$&nbsp;<input id="rep-min" type="number" min="0" step="1" value="50" onchange="repCarregar()" style="width:72px;padding:8px 10px;border:1px solid rgba(45,38,64,.15);border-radius:10px;font-size:.88rem"></label>
+            <button class="btn btn-ghost btn-sm" onclick="repCarregar()">Atualizar</button>
+            <button class="btn btn-secondary btn-sm" onclick="repExportarCSV()">⬇ Exportar CSV</button>
+          </div>
+          <div id="rep-resumo" style="font-size:.82rem;color:var(--ink-mid);margin-bottom:8px"></div>
+          <div id="rep-loading" style="font-size:.85rem;color:var(--ink-soft)">Carregando repasses…</div>
+          <div id="rep-erro" style="display:none;font-size:.82rem;color:var(--rose)"></div>
+          <div id="rep-tabela" style="overflow-x:auto"></div>
+        </div>
+
         <!-- COMISSÕES -->
         <div class="card" id="adm-com-card" style="margin-top:28px">
           <div class="card-title">🧮 Comissões</div>
@@ -3971,6 +3989,7 @@ async function renderAdmin(){
   cupCarregar();
   parcCarregar();
   comissoesCarregar();
+  repCarregar();
 }
 
 // ── ADMIN · FINANCEIRO + LISTA DE USUÁRIOS ──────────────────────────────
@@ -4501,6 +4520,116 @@ async function comMarcar(id, status){
   if(error){ alert('Erro: '+error.message); return; }
   comissoesCarregar();
   parcCarregar(); // atualiza os totais de comissão na lista de parceiros
+}
+
+// ── ADMIN · FECHAMENTO & REPASSES (Fase 3) ────────────────────────────────
+let repDados = [];
+function repMesAtual(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function repMinCentavos(){
+  const raw=(document.getElementById('rep-min')?.value||'50').replace(',','.');
+  const v=parseFloat(raw);
+  return Math.max(0, Math.round((isNaN(v)?50:v)*100));
+}
+function repMesLabel(ym){ return (ym||'').slice(0,7).split('-').reverse().join('/'); }
+
+async function repCarregar(){
+  const loading=document.getElementById('rep-loading');
+  const erro=document.getElementById('rep-erro');
+  const mesEl=document.getElementById('rep-mes');
+  if(mesEl && !mesEl.value) mesEl.value=repMesAtual();
+  if(loading) loading.style.display='block';
+  if(erro) erro.style.display='none';
+  const { data, error } = await supabase.rpc('admin_repasses_listar', { p_min: repMinCentavos() });
+  if(loading) loading.style.display='none';
+  if(error){ if(erro){ erro.style.display='block'; erro.textContent=(error.message||'Erro')+'. Verifique se patinhaviva_parceiros_fase3.sql foi rodado no banco.'; } return; }
+  repDados = data || [];
+  repRenderResumo();
+  repRenderTabela(repDados);
+}
+
+function repRenderResumo(){
+  const el=document.getElementById('rep-resumo'); if(!el) return;
+  if(!repDados.length){ el.textContent=''; return; }
+  const elegiveis=repDados.filter(r=>r.elegivel);
+  const totalPagar=elegiveis.reduce((s,r)=>s+(r.total_centavos||0),0);
+  const acum=repDados.filter(r=>!r.elegivel);
+  const totalAcum=acum.reduce((s,r)=>s+(r.total_centavos||0),0);
+  el.innerHTML='<b>'+elegiveis.length+'</b> parceiro(s) a pagar agora · <b>'+admBRL(totalPagar)+'</b>'
+    +' &nbsp;·&nbsp; <span style="color:var(--ink-soft)">'+acum.length+' acumulando ('+admBRL(totalAcum)+')</span>';
+}
+
+async function repFecharMes(){
+  const mesEl=document.getElementById('rep-mes');
+  const mes=(mesEl&&mesEl.value)||repMesAtual();
+  if(!confirm('Fechar o mês '+repMesLabel(mes)+'?\n\nIsso APROVA de uma vez todas as comissões pendentes desse mês. Você ainda poderá cancelar comissões específicas (no card Comissões) antes de pagar.')) return;
+  const { data, error } = await supabase.rpc('admin_fechar_mes', { p_mes: mes+'-01' });
+  if(error){ alert('Erro ao fechar o mês: '+error.message); return; }
+  alert('Mês '+repMesLabel(mes)+' fechado! '+((data&&data.aprovadas)||0)+' comissão(ões) aprovada(s).');
+  repCarregar(); comissoesCarregar(); parcCarregar();
+}
+
+function repRenderTabela(lista){
+  const wrap=document.getElementById('rep-tabela'); if(!wrap) return;
+  if(!lista.length){ wrap.innerHTML='<div style="font-size:.85rem;color:var(--ink-soft);padding:8px 0">Nenhuma comissão aprovada aguardando repasse. Use “Fechar mês” para aprovar as pendentes.</div>'; return; }
+  const th='text-align:left;padding:8px 10px;font-size:.72rem;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap;border-bottom:1px solid rgba(45,38,64,.08)';
+  const td='padding:8px 10px;font-size:.84rem;border-bottom:1px solid rgba(45,38,64,.05);vertical-align:middle';
+  let h='<table style="width:100%;border-collapse:collapse;min-width:840px"><thead><tr>'
+    + '<th style="'+th+'">Parceiro</th><th style="'+th+'">Nível</th><th style="'+th+'">Comissões</th>'
+    + '<th style="'+th+'">A repassar</th><th style="'+th+'">Chave PIX</th>'
+    + '<th style="'+th+'">Situação</th><th style="'+th+'">Ação</th></tr></thead><tbody>';
+  lista.forEach(r=>{
+    const niv=PARC_NIVEL[r.current_level]||PARC_NIVEL.bronze;
+    const pix=r.pix_key?esc(r.pix_key):'<span style="color:var(--rose)">sem PIX</span>';
+    const sit=r.elegivel
+      ? '<span style="background:var(--teal);color:#fff;border-radius:100px;padding:2px 9px;font-size:.72rem;white-space:nowrap">A pagar</span>'
+      : '<span style="background:rgba(45,38,64,.08);color:var(--ink-soft);border-radius:100px;padding:2px 9px;font-size:.72rem;white-space:nowrap">Acumulando</span>';
+    const acao=r.elegivel
+      ? '<button class="btn btn-secondary btn-sm" onclick="repPagar(\''+r.partner_id+'\')">Marcar pago</button>'
+      : '<span style="color:var(--ink-soft);font-size:.78rem">falta '+admBRL(Math.max(0,repMinCentavos()-(r.total_centavos||0)))+'</span>';
+    h += '<tr>'
+      + '<td style="'+td+'"><div style="font-weight:600">'+esc(r.nome_fantasia||'')+'</div><div style="font-size:.72rem;color:var(--ink-soft);font-family:\'DM Mono\',monospace">'+esc(r.code||'')+'</div></td>'
+      + '<td style="'+td+';white-space:nowrap">'+niv.txt+'</td>'
+      + '<td style="'+td+'">'+(r.qtd_comissoes||0)+'</td>'
+      + '<td style="'+td+';font-weight:600;white-space:nowrap">'+admBRL(r.total_centavos)+'</td>'
+      + '<td style="'+td+';max-width:200px;word-break:break-all">'+pix+'</td>'
+      + '<td style="'+td+'">'+sit+'</td>'
+      + '<td style="'+td+';white-space:nowrap">'+acao+'</td></tr>';
+  });
+  h+='</tbody></table>';
+  wrap.innerHTML=h;
+}
+
+async function repPagar(partnerId){
+  const r=repDados.find(x=>x.partner_id===partnerId); if(!r) return;
+  if(!r.pix_key && !confirm('Este parceiro não tem chave PIX cadastrada. Registrar o repasse mesmo assim?')) return;
+  if(!confirm('Confirmar repasse de '+admBRL(r.total_centavos)+' para '+(r.nome_fantasia||'')+' ('+(r.qtd_comissoes||0)+' comissão(ões))?\n\nIsso marca essas comissões como PAGAS e registra o repasse no histórico.')) return;
+  const label=(document.getElementById('rep-mes')?.value)||repMesAtual();
+  const { data, error } = await supabase.rpc('admin_repasse_pagar', { p_partner: partnerId, p_label: label });
+  if(error){ alert('Erro ao registrar repasse: '+error.message); return; }
+  if(data && data.ok===false){ alert('Nada a pagar para este parceiro.'); repCarregar(); return; }
+  repCarregar(); comissoesCarregar(); parcCarregar();
+}
+
+function repExportarCSV(){
+  if(!repDados.length){ alert('Nada para exportar. Clique em Atualizar primeiro.'); return; }
+  const cab=['Codigo','Parceiro','Tipo','Nivel','Qtd comissoes','Valor a repassar (R$)','Chave PIX','Elegivel','Acumulando desde'];
+  const linhas=[cab];
+  repDados.forEach(r=>{
+    linhas.push([
+      r.code||'', r.nome_fantasia||'', (PARC_TIPOS[r.tipo]||r.tipo||''),
+      capitalizar(r.current_level||''), (r.qtd_comissoes||0),
+      ((r.total_centavos||0)/100).toFixed(2).replace('.',','),
+      r.pix_key||'', (r.elegivel?'Sim':'Nao'), (r.desde_mes||'').slice(0,7)
+    ]);
+  });
+  const csv=linhas.map(l=>l.map(c=>{ const s=String(c==null?'':c); return /[";\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }).join(';')).join('\r\n');
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='repasses-parceiros-'+((document.getElementById('rep-mes')?.value)||repMesAtual())+'.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
 }
 
 // ── ADMIN · CUPONS PROMOCIONAIS (mês grátis no checkout) ──────────────────
